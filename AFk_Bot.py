@@ -3,14 +3,17 @@ import os
 from dotenv import load_dotenv
 from discord.ext import commands, tasks
 import logging
+from discord import app_commands
+
 
 load_dotenv()
 discord_token = os.getenv('AFK_Voice_Token')
 
-AFK_Channel = 1538970413315530752
-Summon_Channel = 1538985931934142596
+Do_Not_Disturb_Channel = 1538970413315530752
 
 handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
+
+
 
 class Client(commands.Bot):
     async def setup_hook(self):
@@ -31,8 +34,7 @@ class Client(commands.Bot):
         if not status_task.is_running():
             status_task.start()
 
-intents = discord.Intents.default()
-intents.message_content = True
+intents = discord.Intents.all()
 client = Client(intents=intents ,command_prefix='!')
 
 
@@ -65,18 +67,44 @@ async def before_status_task():
 
 @client.event
 async def on_voice_state_update(member, before, after):
-    if after.channel.id == AFK_Channel:
+    if after.channel.id == Do_Not_Disturb_Channel:
         if member.guild_permissions.administrator:
             await member.edit(mute=True)
         
-    elif before.channel.id == AFK_Channel:
+    elif after.channel.id != Do_Not_Disturb_Channel:
         if member.guild_permissions.administrator:
             await member.edit(mute=False)
-        
-@client.tree.command(name="summon", description="Moves a user into your voice if they are in afk")
-@client.tree.command.describe(user="The user you want to move from AFK to your voice channel.", voice="The voice channel you want to move the user to.")
-async def summon(interaction: discord.Interaction, user: discord.Member, voice: discord.VoiceChannel):
-    print(f"/summon command received. Moving {user} to {voice}.")
+
+@client.tree.command(name="do_not_disturb" , description="Sets yourself to do not disturb")
+async def do_not_disturb(interaction: discord.Interaction):
+
+    if interaction.user.voice and interaction.user.voice.channel.id != Do_Not_Disturb_Channel:
+        await interaction.user.move_to(discord.Object(id=Do_Not_Disturb_Channel))
+        await interaction.response.send_message("You have been moved to the Do Not Disturb channel.", ephemeral=True)
+    else:
+        await interaction.response.send_message("You are already in the Do Not Disturb channel or not in a voice channel.", ephemeral=True)
+
+
+@client.tree.command(name="talk_with", description="Moves a user into your voice if they are in the Do Not Disturb channel.")
+@app_commands.describe(user="The user you want to move from AFK to your voice channel.")
+async def talk_with(interaction: discord.Interaction, user: discord.Member):
+    if interaction.user.voice and interaction.user.voice.channel.id != Do_Not_Disturb_Channel:
+        user = interaction.guild.get_member(user.id)
+        print(f"User {user.display_name} status: {user.status}")
+        if user.status == discord.Status.dnd:
+            invite = await interaction.user.voice.channel.create_invite(unique=False )
+            await user.send(f"User {interaction.user.display_name} wants to talk with you in {interaction.user.voice.channel.name}. \nClick the link to join: {invite.url}")
+            await interaction.response.send_message(f"Send {user.mention} a DM that you want to talk with them.", ephemeral=True)
+            return
+
+        if user.voice and user.voice.channel.id == Do_Not_Disturb_Channel:
+            await user.move_to(interaction.user.voice.channel)
+            await interaction.response.send_message(f"{user.mention} has been moved to your voice channel.", ephemeral=True)
+        else:
+            await interaction.response.send_message(f"{user.mention} is not in the Do Not Disturb channel.", ephemeral=True)
+    else:
+        await interaction.response.send_message("You must be in a voice channel to talk with someone.", ephemeral=True)
+    
 
 
 
