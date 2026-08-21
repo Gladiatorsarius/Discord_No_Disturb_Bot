@@ -10,7 +10,7 @@ BOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 
-BOT_FILE = os.path.join(BOT_DIR, "AFk_Bot.py")
+BOT_FILE = os.path.join(BOT_DIR, "Do_Not_Disturb.py")
 
 
 RESTART_FILE = os.path.join(BOT_DIR, "restart.txt")
@@ -106,13 +106,12 @@ def main():
         while True:
             # Loop 1: normal runtime/restart/startup/exit detection
             while True:
-                if RESTART_EVENT.is_set() or os.path.exists(RESTART_FILE):
-                    remove_file_if_exists(RESTART_FILE)
+                if RESTART_EVENT.is_set():
                     RESTART_EVENT.clear()
 
-                    create_empty_file(SHUTDOWN_FILE)
+                    create_empty_file(RESTART_FILE)
                     shutdown_requested = True
-                    print("Restart signal received. Created shutdown.txt.")
+                    print("Restart signal received. Created restart.txt.")
 
                     # Do nothing else this cycle after restart signal.
                     time.sleep(1)
@@ -122,8 +121,9 @@ def main():
 
                     if bot_proc is not None and bot_proc.poll() is None:
                         if shutdown_requested:
-                            print("startup file detected after restart bot is still running waiting for bot to shutdown")
-                            printed_waiting = True
+                            if not printed_waiting:
+                                print("startup file detected after restart bot is still running waiting for bot to shutdown")
+                                printed_waiting = True
                         else:
                             print("startup file detected but bot still running")
                     else:
