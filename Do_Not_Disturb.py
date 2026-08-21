@@ -48,7 +48,7 @@ client = Client(intents=intents ,command_prefix='!')
 
 @client.tree.command(name="restart", description="Restarts the bot" , guild=Dev_Guild_ID)
 async def restart(interaction: discord.Interaction):
-    await interaction.response.send_message("Restarting the bot...")
+    await interaction.response.send_message("Restarting the bot...", ephemeral=True)
     print("/restart command received.Shutting down...")
     with open("startup.txt", "w") as f:
         pass
@@ -56,7 +56,7 @@ async def restart(interaction: discord.Interaction):
 
 @client.tree.command(name="shutdown", description="Shuts down the bot", guild=Dev_Guild_ID)
 async def shutdown(interaction: discord.Interaction):
-    await interaction.response.send_message("Shutting down the bot...")
+    await interaction.response.send_message("Shutting down the bot...", ephemeral=True)
     print("/shutdown command received. Shutting down...")
     await client.close()
 
