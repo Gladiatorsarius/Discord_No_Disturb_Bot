@@ -4,6 +4,12 @@ A Discord bot that creates a **Do Not Disturb** voice channel. Users can join th
 
 When someone uses `/talk_with`, the bot can move a user from the Do Not Disturb channel to the caller's voice channel. If the user has their Discord status set to Do Not Disturb, the bot sends them a private message instead.
 
+## Try the Official Bot
+
+The official bot is already hosted, so you can try it without running the Python files yourself. An administrator can use the link below to add it to a Discord server. After inviting it, run `/setup` in the server to create the Do Not Disturb channel and Mute Immune role.
+
+[Invite the official bot to your server](https://discord.com/oauth2/authorize?client_id=1538953537189318788)
+
 ## Setup
 
 1. Install Python 3.
