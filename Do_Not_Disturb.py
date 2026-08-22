@@ -7,7 +7,7 @@ from discord import app_commands
 import types
 
 load_dotenv()
-discord_token = os.getenv('AFK_Voice_Token')
+discord_token = os.getenv('Discord_Token')
 
 
 handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
@@ -97,7 +97,7 @@ async def on_voice_state_update(member, before, after):
 
 
 @client.tree.command(name="setup" , description="Sets up the Bot" )
-@commands.has_permissions(administrator=True)
+@app_commands.checks.has_permissions(administrator=True)
 async def setup(interaction: discord.Interaction, category: discord.CategoryChannel = None):
     setup_progress = "Setting up the bot..."
     do_not_disturb_channel_message = "Waiting for previous steps to complete..."
@@ -174,8 +174,14 @@ async def setup(interaction: discord.Interaction, category: discord.CategoryChan
             do_not_disturb_permission_mute_immune_message = f"'Do Not Disturb' channel permissions for {Mute_Immune_Role.mention} are already set to speak. :white_check_mark: "
         await interaction.edit_original_response(embed=await update_embed(4))
 
+@setup.error
+async def setup_error(interaction: discord.Interaction, error):
+    if isinstance(error, app_commands.MissingPermissions):
+        await interaction.response.send_message("You do not have permission to use this command.\nPls ask an administrator to set up the bot.", ephemeral=True)
+
+
 # @client.tree.command(name="undo_setup", description="Undoes the setup of the bot")
-# @commands.has_permissions(administrator=True)
+# @app_commands.checks.has_permissions(administrator=True)
 # async def undo_setup(interaction: discord.Interaction):
 #     await interaction.response.send_message("Undoing setup...", ephemeral=True)
 #     Do_Not_Disturb_Channel = discord.utils.get(interaction.guild.voice_channels, name="Do Not Disturb")

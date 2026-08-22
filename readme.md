@@ -22,7 +22,7 @@ pip install -r requirements.txt
 3. Create a `.env` file in the project folder:
 
 ```env
-AFK_Voice_Token=your_discord_bot_token
+Discord_Token=your_discord_bot_token
 ```
 
 4. In the Discord Developer Portal, enable the **Members**, **Presence**, and **Message Content** intents under the bot settings.
