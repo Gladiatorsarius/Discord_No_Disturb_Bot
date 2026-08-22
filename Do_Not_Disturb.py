@@ -209,10 +209,10 @@ class HelpMenu(discord.ui.Select):
         Mute_Immune_Role = discord.utils.get(interaction.guild.roles, name="Mute Immune")
         if Mute_Immune_Role is None:
             Mute_Immune_Role = types.SimpleNamespace(mention="Mute Immune")
-            Mute_Immune_Role.mention = "\"Mute Immune\""
+            Mute_Immune_Role.mention = "Mute Immune"
         if Do_Not_Disturb_Channel is None:
             Do_Not_Disturb_Channel = types.SimpleNamespace(mention="Do Not Disturb")
-            Do_Not_Disturb_Channel.mention = "\"Do Not Disturb\""
+            Do_Not_Disturb_Channel.mention = "Do Not Disturb"
         if self.values[0] == "/setup":
             await interaction.response.send_message(f"The /setup command sets up the bot by creating a {Mute_Immune_Role.mention} role and a {Do_Not_Disturb_Channel.mention} voice channel.\nUsage: /setup Category", ephemeral=True)
         elif self.values[0] == "/talk_with":
