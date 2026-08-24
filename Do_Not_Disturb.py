@@ -6,21 +6,25 @@ import logging
 from discord import app_commands
 import types
 
-load_dotenv()
-discord_token = os.getenv('Discord_Token')
+In_Testing = os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "testing.txt"))
 
+load_dotenv()
+if In_Testing:
+    discord_token = os.getenv('Discord_Token_Testing')
+else: 
+    discord_token = os.getenv('Discord_Token_Testing')
 
 handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
 
-Developer_ID = 1130514544960225402
-Dev_Guild_ID = discord.Object(id=1537433277445574676)
+Developer_ID = 1130514544960225402 # Replace with your Discord user ID
+Dev_Guild_ID = discord.Object(id=1537433277445574676) # Replace with your development server ID
 
-In_Prod = False  # Set to True when deploying to production
+
 
 class Client(commands.Bot):
     async def setup_hook(self):
         try:
-            if In_Prod:
+            if not In_Testing:
                 synced_Global = await self.tree.sync()
                 synced_Guild = await self.tree.sync(guild=Dev_Guild_ID)
                 print(f"Synced {len(synced_Global)} global commands and {len(synced_Guild)} guild commands.")
@@ -37,7 +41,7 @@ class Client(commands.Bot):
 
     async def on_ready(self):
         print(f'Logged in as {self.user.name}')
-        if not status_task.is_running():
+        if not status_task.is_running() and In_Testing:
             status_task.start()
 
 intents = discord.Intents.default()
@@ -46,36 +50,37 @@ intents.members = True
 intents.presences = True
 client = Client(intents=intents ,command_prefix='!')
 
-@client.tree.command(name="restart", description="Restarts the bot" , guild=Dev_Guild_ID)
-async def restart(interaction: discord.Interaction):
-    await interaction.response.send_message("Restarting the bot...", ephemeral=True)
-    print("/restart command received.Shutting down...")
-    with open("startup.txt", "w") as f:
-        pass
-    await interaction.client.close()
-
-@client.tree.command(name="shutdown", description="Shuts down the bot", guild=Dev_Guild_ID)
-async def shutdown(interaction: discord.Interaction):
-    await interaction.response.send_message("Shutting down the bot...", ephemeral=True)
-    print("/shutdown command received. Shutting down...")
-    await client.close()
-
-@tasks.loop(seconds=1)
-async def status_task():
-    if os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "shutdown.txt")):
-        print("Shutdown signal received. Shutting down...")
-        os.remove(os.path.join(os.path.dirname(os.path.abspath(__file__)), "shutdown.txt"))
-        await client.close()
-    if os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "restart.txt")):
-        print("Restart signal received. Restarting...")
-        os.remove(os.path.join(os.path.dirname(os.path.abspath(__file__)), "restart.txt"))
+if In_Testing:
+    @client.tree.command(name="restart", description="Restarts the bot" , guild=Dev_Guild_ID)
+    async def restart(interaction: discord.Interaction):
+        await interaction.response.send_message("Restarting the bot...", ephemeral=True)
+        print("/restart command received.Shutting down...")
         with open("startup.txt", "w") as f:
             pass
+        await interaction.client.close()
+
+    @client.tree.command(name="shutdown", description="Shuts down the bot", guild=Dev_Guild_ID)
+    async def shutdown(interaction: discord.Interaction):
+        await interaction.response.send_message("Shutting down the bot...", ephemeral=True)
+        print("/shutdown command received. Shutting down...")
         await client.close()
 
-@status_task.before_loop
-async def before_status_task():
-    await client.wait_until_ready()
+    @tasks.loop(seconds=1)
+    async def status_task():
+        if os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "shutdown.txt")):
+            print("Shutdown signal received. Shutting down...")
+            os.remove(os.path.join(os.path.dirname(os.path.abspath(__file__)), "shutdown.txt"))
+            await client.close()
+        if os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "restart.txt")):
+            print("Restart signal received. Restarting...")
+            os.remove(os.path.join(os.path.dirname(os.path.abspath(__file__)), "restart.txt"))
+            with open("startup.txt", "w") as f:
+                pass
+            await client.close()
+
+    @status_task.before_loop
+    async def before_status_task():
+        await client.wait_until_ready()
 
 @client.event
 async def on_voice_state_update(member, before, after):
@@ -179,17 +184,17 @@ async def setup_error(interaction: discord.Interaction, error):
     if isinstance(error, app_commands.MissingPermissions):
         await interaction.response.send_message("You do not have permission to use this command.\nPls ask an administrator to set up the bot.", ephemeral=True)
 
-
-# @client.tree.command(name="undo_setup", description="Undoes the setup of the bot")
-# @app_commands.checks.has_permissions(administrator=True)
-# async def undo_setup(interaction: discord.Interaction):
-#     await interaction.response.send_message("Undoing setup...", ephemeral=True)
-#     Do_Not_Disturb_Channel = discord.utils.get(interaction.guild.voice_channels, name="Do Not Disturb")
-#     Mute_Immune_Role = discord.utils.get(interaction.guild.roles, name="Mute Immune")
-#     if Do_Not_Disturb_Channel is not None:
-#         await Do_Not_Disturb_Channel.delete()
-#     if Mute_Immune_Role is not None:
-#         await Mute_Immune_Role.delete()
+if In_Testing:
+    @client.tree.command(name="undo_setup", description="Undoes the setup of the bot")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def undo_setup(interaction: discord.Interaction):
+        await interaction.response.send_message("Undoing setup...", ephemeral=True)
+        Do_Not_Disturb_Channel = discord.utils.get(interaction.guild.voice_channels, name="Do Not Disturb")
+        Mute_Immune_Role = discord.utils.get(interaction.guild.roles, name="Mute Immune")
+        if Do_Not_Disturb_Channel is not None:
+            await Do_Not_Disturb_Channel.delete()
+        if Mute_Immune_Role is not None:
+            await Mute_Immune_Role.delete()
 
 class HelpMenu(discord.ui.Select):
     def __init__(self):
@@ -271,6 +276,8 @@ async def talk_with(interaction: discord.Interaction, user: discord.Member):
 @client.tree.command(name="source", description="Provides the source code of the bot.")
 async def source_code(interaction: discord.Interaction):
     await interaction.response.send_message("You can find the source code of this bot on GitHub: [Source Code](https://github.com/Gladiatorsarius/Discord_No_Disturb_Bot)", ephemeral=True)
+
+
 
 
 client.run(discord_token,log_handler=handler, log_level=logging.DEBUG)
