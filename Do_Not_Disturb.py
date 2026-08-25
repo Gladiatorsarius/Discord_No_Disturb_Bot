@@ -5,6 +5,8 @@ from discord.ext import commands, tasks
 import logging
 from discord import app_commands
 import types
+import git_commands
+
 
 In_Testing = os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "testing.txt"))
 
@@ -12,7 +14,7 @@ load_dotenv()
 if In_Testing:
     discord_token = os.getenv('Discord_Token_Testing')
 else: 
-    discord_token = os.getenv('Discord_Token_Testing')
+    discord_token = os.getenv('Discord_Token')
 
 handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
 
@@ -81,29 +83,41 @@ if In_Testing:
     @status_task.before_loop
     async def before_status_task():
         await client.wait_until_ready()
+else:
+    @client.tree.command(name="update", description="Pulls the latest changes from the GitHub repository and restarts the bot.", guild=Dev_Guild_ID)
+    @app_commands.checks.has_permissions(administrator=True)
+    async def update(interaction: discord.Interaction):
+        await interaction.response.send_message("Pulling latest changes from GitHub and restarting the bot...", ephemeral=True)
+        
+
+def get_Mute_Immune_Role(guild):
+    return discord.utils.get(guild.roles, name="Mute Immune")
+
+def get_Do_Not_Disturb_Channel(guild):
+    return discord.utils.get(guild.voice_channels, name="Do Not Disturb")
 
 @client.event
 async def on_voice_state_update(member, before, after):
-    Mute_Immune_Role = discord.utils.get(after.channel.guild.roles, name="Mute Immune")
-    if member.get_role(Mute_Immune_Role.id):
-        if after.channel is not None and after.channel.name == "Do Not Disturb":
-            await member.edit(mute=False)
+    if not member.guild_permissions.administrator:
         return
+        
+    Do_Not_Disturb_Channel = get_Do_Not_Disturb_Channel(after.channel.guild)
 
-    Do_Not_Disturb_Channel = discord.utils.get(after.channel.guild.voice_channels, name="Do Not Disturb")
-
-    if after.channel == Do_Not_Disturb_Channel:
-        if member.guild_permissions.administrator:
-            await member.edit(mute=True)
+    Mute_Immune_Role = get_Mute_Immune_Role(after.channel.guild)
+    if member.get_role(Mute_Immune_Role.id):
+        return
     
-    elif after.channel != Do_Not_Disturb_Channel:
-        if member.guild_permissions.administrator:
-            await member.edit(mute=False)
+    if after.channel == Do_Not_Disturb_Channel:
+        await member.edit(mute=True)
+    else:
+        await member.edit(mute=False)
 
 
 @client.tree.command(name="setup" , description="Sets up the Bot" )
 @app_commands.checks.has_permissions(administrator=True)
-async def setup(interaction: discord.Interaction, category: discord.CategoryChannel = None):
+@app_commands.describe(category="The category under which the 'Do Not Disturb' channel will be created. If not specified, it will be created as an uncategorized voice channel.", 
+                       default_role="The role that will be given permission to mute in the 'Do Not Disturb' channel. If not specified, @everyone will be used.")
+async def setup(interaction: discord.Interaction, category: discord.CategoryChannel = None, default_role: discord.Role = None):
     setup_progress = "Setting up the bot..."
     do_not_disturb_channel_message = "Waiting for previous steps to complete..."
     do_not_disturb_permission_everyone_message = "Waiting for previous steps to complete..."
@@ -129,10 +143,10 @@ async def setup(interaction: discord.Interaction, category: discord.CategoryChan
     mute_immune_role_message = "Checking 'Mute Immune' role..."
     await interaction.edit_original_response(embed=await update_embed(0))
     
-    Mute_Immune_Role = discord.utils.get(interaction.guild.roles, name="Mute Immune")
+    Mute_Immune_Role = get_Mute_Immune_Role(interaction.guild)
     if Mute_Immune_Role is None:
         await interaction.guild.create_role(name="Mute Immune")
-        Mute_Immune_Role = discord.utils.get(interaction.guild.roles, name="Mute Immune")
+        Mute_Immune_Role = get_Mute_Immune_Role(interaction.guild)
         mute_immune_role_message = f"Created {Mute_Immune_Role.mention} role. :white_check_mark: "
     else:
         mute_immune_role_message = f"{Mute_Immune_Role.mention} role exists. :white_check_mark: "
@@ -141,17 +155,19 @@ async def setup(interaction: discord.Interaction, category: discord.CategoryChan
     do_not_disturb_channel_message = "Checking if 'Do Not Disturb channel' exists :arrows_clockwise: ... "
     await interaction.edit_original_response(embed=await update_embed(1))
 
-    Do_Not_Disturb_Channel = discord.utils.get(interaction.guild.voice_channels, name="Do Not Disturb")
+    Do_Not_Disturb_Channel = get_Do_Not_Disturb_Channel(interaction.guild)
+    if default_role is None:
+        default_role = interaction.guild.default_role
     if Do_Not_Disturb_Channel is None:
         await interaction.guild.create_voice_channel(name ="Do Not Disturb" , category=category)
-        Do_Not_Disturb_Channel = discord.utils.get(interaction.guild.voice_channels, name="Do Not Disturb")
+        Do_Not_Disturb_Channel = get_Do_Not_Disturb_Channel(interaction.guild)
         do_not_disturb_channel_message = f"Created {Do_Not_Disturb_Channel.mention} channel. {"As Uncategorized Voice Channel" if category is None else f"Under {category.name}"} :white_check_mark: "
 
-        do_not_disturb_permission_everyone_message = f"Setting 'Do Not Disturb' channel permissions for {interaction.guild.default_role.mention} :arrows_clockwise: ..."
+        do_not_disturb_permission_everyone_message = f"Setting 'Do Not Disturb' channel permissions for {default_role.mention} :arrows_clockwise: ..."
         await interaction.edit_original_response(embed=await update_embed(2))
 
-        await Do_Not_Disturb_Channel.set_permissions(interaction.guild.default_role, connect=True, speak=False)
-        do_not_disturb_permission_everyone_message = f"Set 'Do Not Disturb' channel permissions for {interaction.guild.default_role.mention} to not speak. :white_check_mark: "
+        await Do_Not_Disturb_Channel.set_permissions(default_role, connect=True, speak=False)
+        do_not_disturb_permission_everyone_message = f"Set 'Do Not Disturb' channel permissions for {default_role.mention} to not speak. :white_check_mark: "
 
         do_not_disturb_permission_mute_immune_message = f"Setting 'Do Not Disturb' channel permissions for {Mute_Immune_Role.mention} :arrows_clockwise: ..."
         await interaction.edit_original_response(embed=await update_embed(3))
@@ -162,13 +178,13 @@ async def setup(interaction: discord.Interaction, category: discord.CategoryChan
 
     else:
         do_not_disturb_channel_message = f"{Do_Not_Disturb_Channel.mention} channel exists. :white_check_mark: "
-        do_not_disturb_permission_everyone_message = f"Checking  'Do Not Disturb' channel permissions for {interaction.guild.default_role.mention} :arrows_clockwise: ..."
+        do_not_disturb_permission_everyone_message = f"Checking  'Do Not Disturb' channel permissions for {default_role.mention} :arrows_clockwise: ..."
         await interaction.edit_original_response(embed=await update_embed(2))
-        if Do_Not_Disturb_Channel.permissions_for(interaction.guild.default_role).speak is not False:
-            await Do_Not_Disturb_Channel.set_permissions(interaction.guild.default_role, connect=True, speak=False)
-            do_not_disturb_permission_everyone_message = f"Set 'Do Not Disturb' channel permissions for {interaction.guild.default_role.mention} to not speak. :white_check_mark: "
+        if Do_Not_Disturb_Channel.permissions_for(default_role).speak is not False:
+            await Do_Not_Disturb_Channel.set_permissions(default_role, connect=True, speak=False)
+            do_not_disturb_permission_everyone_message = f"Set 'Do Not Disturb' channel permissions for {default_role.mention} to not speak. :white_check_mark: "
         else:
-            do_not_disturb_permission_everyone_message = f"'Do Not Disturb' channel permissions for {interaction.guild.default_role.mention} are already set to not speak. :white_check_mark: "
+            do_not_disturb_permission_everyone_message = f"'Do Not Disturb' channel permissions for {default_role.mention} are already set to not speak. :white_check_mark: "
 
         do_not_disturb_permission_mute_immune_message = f"Checking 'Do Not Disturb' channel permissions for {Mute_Immune_Role.mention} :arrows_clockwise: ..."
         await interaction.edit_original_response(embed=await update_embed(3))
@@ -189,8 +205,8 @@ if In_Testing:
     @app_commands.checks.has_permissions(administrator=True)
     async def undo_setup(interaction: discord.Interaction):
         await interaction.response.send_message("Undoing setup...", ephemeral=True)
-        Do_Not_Disturb_Channel = discord.utils.get(interaction.guild.voice_channels, name="Do Not Disturb")
-        Mute_Immune_Role = discord.utils.get(interaction.guild.roles, name="Mute Immune")
+        Do_Not_Disturb_Channel = get_Do_Not_Disturb_Channel(interaction.guild)
+        Mute_Immune_Role = get_Mute_Immune_Role(interaction.guild)
         if Do_Not_Disturb_Channel is not None:
             await Do_Not_Disturb_Channel.delete()
         if Mute_Immune_Role is not None:
@@ -210,8 +226,8 @@ class HelpMenu(discord.ui.Select):
 
 
     async def callback(self, interaction: discord.Interaction):
-        Do_Not_Disturb_Channel = discord.utils.get(interaction.guild.voice_channels, name="Do Not Disturb")
-        Mute_Immune_Role = discord.utils.get(interaction.guild.roles, name="Mute Immune")
+        Do_Not_Disturb_Channel = get_Do_Not_Disturb_Channel(interaction.guild)
+        Mute_Immune_Role = get_Mute_Immune_Role(interaction.guild)
         if Mute_Immune_Role is None:
             Mute_Immune_Role = types.SimpleNamespace(mention="Mute Immune")
             Mute_Immune_Role.mention = "Mute Immune"
@@ -249,7 +265,7 @@ async def talk_with(interaction: discord.Interaction, user: discord.Member):
         await interaction.response.send_message("You must be in a voice channel to talk with someone.", ephemeral=True)
         return
 
-    Do_Not_Disturb_Channel = discord.utils.get(interaction.guild.voice_channels, name="Do Not Disturb")
+    Do_Not_Disturb_Channel = get_Do_Not_Disturb_Channel(interaction.guild)
             
     if interaction.user.voice.channel == Do_Not_Disturb_Channel:
         await interaction.response.send_message("You cannot talk with someone while in the Do Not Disturb channel.", ephemeral=True)
@@ -275,8 +291,10 @@ async def talk_with(interaction: discord.Interaction, user: discord.Member):
     
 @client.tree.command(name="source", description="Provides the source code of the bot.")
 async def source_code(interaction: discord.Interaction):
-    await interaction.response.send_message("You can find the source code of this bot on GitHub: [Source Code](https://github.com/Gladiatorsarius/Discord_No_Disturb_Bot)", ephemeral=True)
-
+    if git_commands.git_url_origin() is None or git_commands.git_url_origin() == "https://github.com/Gladiatorsarius/Discord_No_Disturb_Bot":
+        await interaction.response.send_message("You can find the source code of this bot on GitHub: [Source Code](https://github.com/Gladiatorsarius/Discord_No_Disturb_Bot)", ephemeral=True)
+    else:
+        await interaction.response.send_message(f"This Bot got modified by : [Source Code]({git_commands.git_url_origin()})",ephemeral=True) 
 
 
 
