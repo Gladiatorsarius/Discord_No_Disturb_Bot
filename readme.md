@@ -52,7 +52,7 @@ python Do_Not_Disturb.py
 
 | Command | Description |
 | --- | --- |
-| `/setup [category]` | Creates the **Do Not Disturb** voice channel and **Mute Immune** role. You can optionally choose a category for the channel. Admin only. |
+| `/setup [category] [default_role]` | Creates the **Do Not Disturb** voice channel and **Mute Immune** role. You can optionally choose a category for the channel and the default Role to configure. Admin only. |
 | `/undo_setup` | Deletes the Do Not Disturb channel and Mute Immune role. Use this only when you want to remove the bot's setup. Testing mode and admin only. |
 | `/talk_with @user` | Requires you to be in a voice channel. Moves the selected user out of Do Not Disturb and into your channel. If their status is DND, sends them a private message with an invite instead. |
 | `/help` | Shows an overview of the bot. Use the dropdown menu to read more about each feature. |
