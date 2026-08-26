@@ -2,3 +2,7 @@
 .venv/
 discord.log
 testing.txt
+shutdown.txt
+restart.txt
+startup.txt
+__pycache__/

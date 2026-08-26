@@ -4,9 +4,10 @@ from dotenv import load_dotenv
 from discord.ext import commands, tasks
 import logging
 from discord import app_commands
-import types
+from types import SimpleNamespace
 import git_commands
 
+__Version__ = "1.2.0"
 
 In_Testing = os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "testing.txt"))
 
@@ -16,12 +17,14 @@ if In_Testing:
 else: 
     discord_token = os.getenv('Discord_Token')
 
+Dev_Guild_ID = discord.Object(id=(os.getenv('Dev_Guild_ID')))
+Developer_ID = discord.Object(id=(os.getenv('Developer_ID')))
+
+Original_Source_Code_URL = "https://github.com/Gladiatorsarius/Discord_No_Disturb_Bot" #Please do not change this URL. It is used to provide credit to the original author of the bot.
+Original_Author_ID = discord.Object(id=1130514544960225402) #Please do not change this id. It is used to provide credit to the original author of the bot.
+Original_Author_Name = "Gladiatorsarius" #Please do not change this name. It is used to provide credit to the original author of the bot.
+
 handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
-
-Developer_ID = 1130514544960225402 # Replace with your Discord user ID
-Dev_Guild_ID = discord.Object(id=1537433277445574676) # Replace with your development server ID
-
-
 
 class Client(commands.Bot):
     async def setup_hook(self):
@@ -51,6 +54,14 @@ intents.message_content = True
 intents.members = True
 intents.presences = True
 client = Client(intents=intents ,command_prefix='!')
+
+def check_developer_id(user_id: int) -> bool:
+    return user_id == Developer_ID.id
+
+def is_developer():
+    async def predicate(interaction: discord.Interaction):
+        return check_developer_id(interaction.user.id)
+    return app_commands.check(predicate)
 
 if In_Testing:
     @client.tree.command(name="restart", description="Restarts the bot" , guild=Dev_Guild_ID)
@@ -84,11 +95,51 @@ if In_Testing:
     async def before_status_task():
         await client.wait_until_ready()
 else:
-    @client.tree.command(name="update", description="Pulls the latest changes from the GitHub repository and restarts the bot.", guild=Dev_Guild_ID)
-    @app_commands.checks.has_permissions(administrator=True)
-    async def update(interaction: discord.Interaction):
-        await interaction.response.send_message("Pulling latest changes from GitHub and restarting the bot...", ephemeral=True)
-        
+    tuff = None
+
+class show_exact_file_differencesView(discord.ui.View):
+    @discord.ui.button(label="See exact file differences", style=discord.ButtonStyle.primary)
+    async def see_exact_file_differences(self, interaction: discord.Interaction, button:discord.ui.Button):
+        differences = git_commands.git_diff("Files")
+          
+                
+
+class show_file_differencesView(discord.ui.View):
+    @discord.ui.button(label="See changed files", style=discord.ButtonStyle.primary)
+    async def see_file_differences(self, interaction: discord.Interaction, button: discord.ui.Button):
+        differences = git_commands.git_diff("stat")  
+        embed = discord.Embed(title="Changed Files", description=differences, color=discord.Color.blue())
+        await interaction.response.send_message(embed=embed, view=show_exact_file_differencesView(), ephemeral=True)
+
+
+class show_commitsView(discord.ui.View):
+    @discord.ui.button(label="Show commits", style=discord.ButtonStyle.primary)
+    async def show_commit_links(self, interaction: discord.Interaction, button: discord.ui.Button):
+        commit_links = git_commands.commit_links()
+        commit_messages = git_commands.git_differences("commit_message")
+        short_hashes = git_commands.git_differences("short_hash")
+
+        commit_messages_with_links = []
+        for i in range(len(commit_links)):
+            commit_messages_with_links.append(f"[{commit_messages[i]}]({commit_links[i]})")
+
+        embed = discord.Embed(title="Commits", description="Unmerged changes", color=discord.Color.blue())
+        for i in range(len(commit_messages_with_links)):
+            embed.add_field(name=short_hashes[i], value=commit_messages_with_links[i], inline=False)
+        await interaction.response.send_message(embed=embed, view=show_file_differencesView(), ephemeral=True)
+
+
+@client.tree.command(name="version", description="Shows the current version of the bot.")
+async def version(interaction: discord.Interaction):
+    behind_Main = git_commands.git_differences("commit_count")
+    if behind_Main != "0":
+        embed = discord.Embed(title=f"Current Version: {__Version__}", description=f"The current version is not up to date with the latest version on [GitHub]({git_commands.git_url_origin()}).", color=discord.Color.red())
+        embed.add_field(name="GitHub Version", value=f"{git_commands.get_remote_version()}", inline=False)
+        embed.add_field(name="Behind Commits", value=f"The Bot is {behind_Main} commits behind.", inline=False)
+        await interaction.response.send_message(embed=embed, view=show_commitsView(), ephemeral=True)
+    else:
+        embed = discord.Embed(title=f"Current Version: {__Version__}", description=f"The current version is up to date with the latest version on [GitHub]({git_commands.git_url_origin()}).", color=discord.Color.green())
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 def get_Mute_Immune_Role(guild):
     return discord.utils.get(guild.roles, name="Mute Immune")
@@ -229,10 +280,10 @@ class HelpMenu(discord.ui.Select):
         Do_Not_Disturb_Channel = get_Do_Not_Disturb_Channel(interaction.guild)
         Mute_Immune_Role = get_Mute_Immune_Role(interaction.guild)
         if Mute_Immune_Role is None:
-            Mute_Immune_Role = types.SimpleNamespace(mention="Mute Immune")
+            Mute_Immune_Role = SimpleNamespace(mention="Mute Immune")
             Mute_Immune_Role.mention = "Mute Immune"
         if Do_Not_Disturb_Channel is None:
-            Do_Not_Disturb_Channel = types.SimpleNamespace(mention="Do Not Disturb")
+            Do_Not_Disturb_Channel = SimpleNamespace(mention="Do Not Disturb")
             Do_Not_Disturb_Channel.mention = "Do Not Disturb"
         if self.values[0] == "/setup":
             await interaction.response.send_message(f"The /setup command sets up the bot by creating a {Mute_Immune_Role.mention} role and a {Do_Not_Disturb_Channel.mention} voice channel.\nUsage: /setup Category", ephemeral=True)
@@ -291,10 +342,15 @@ async def talk_with(interaction: discord.Interaction, user: discord.Member):
     
 @client.tree.command(name="source", description="Provides the source code of the bot.")
 async def source_code(interaction: discord.Interaction):
-    if git_commands.git_url_origin() is None or git_commands.git_url_origin() == "https://github.com/Gladiatorsarius/Discord_No_Disturb_Bot":
-        await interaction.response.send_message("You can find the source code of this bot on GitHub: [Source Code](https://github.com/Gladiatorsarius/Discord_No_Disturb_Bot)", ephemeral=True)
+    git_url_origin = git_commands.git_url_origin()
+    Original_Author = interaction.guild.get_member(Original_Author_ID.id)
+    if Original_Author is None:
+        Original_Author = SimpleNamespace(mention=Original_Author_Name)
+    if git_url_origin is None or git_url_origin == Original_Source_Code_URL:
+        await interaction.response.send_message(f"This Bot is Developed by {Original_Author.mention}\nYou can find the source code of this bot on GitHub: [Source Code]({Original_Source_Code_URL})", ephemeral=True)
     else:
-        await interaction.response.send_message(f"This Bot got modified by : [Source Code]({git_commands.git_url_origin()})",ephemeral=True) 
+        author = git_commands.author_name()
+        await interaction.response.send_message(f"This Bot Version of the Bot got modified by {author}\nYou can find the source code of this bot on GitHub: [Source Code]({git_url_origin}) \nThis Bot was originally developed by {Original_Author.mention} \nYou can find the original source code on GitHub: [Original Source Code]({Original_Source_Code_URL})", ephemeral=True)
 
 
 
