@@ -7,7 +7,8 @@ from discord import app_commands
 from types import SimpleNamespace
 import git_commands
 
-__Version__ = "1.2.3"
+#region Variables
+__Version__ = "1.2.4"
 
 In_Testing = os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "testing.txt"))
 
@@ -25,7 +26,8 @@ Original_Author_ID = discord.Object(id=1130514544960225402) #Please do not chang
 Original_Author_Name = "Gladiatorsarius" #Please do not change this name. It is used to provide credit to the original author of the bot.
 
 handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
-
+#endregion
+#region Bot Setup
 class Client(commands.Bot):
     async def setup_hook(self):
         try:
@@ -54,7 +56,9 @@ intents.message_content = True
 intents.members = True
 intents.presences = True
 client = Client(intents=intents ,command_prefix='!')
+#endregion
 
+#region Helper Functions
 def check_developer_id(user_id: int) -> bool:
     return user_id == Developer_ID.id
 
@@ -63,137 +67,20 @@ def is_developer():
         return check_developer_id(interaction.user.id)
     return app_commands.check(predicate)
 
-if In_Testing:
-    @client.tree.command(name="restart", description="Restarts the bot" , guild=Dev_Guild_ID)
-    async def restart(interaction: discord.Interaction):
-        await interaction.response.send_message("Restarting the bot...", ephemeral=True)
-        print("/restart command received.Shutting down...")
-        with open("startup.txt", "w") as f:
-            pass
-        await interaction.client.close()
-
-    @client.tree.command(name="shutdown", description="Shuts down the bot", guild=Dev_Guild_ID)
-    async def shutdown(interaction: discord.Interaction):
-        await interaction.response.send_message("Shutting down the bot...", ephemeral=True)
-        print("/shutdown command received. Shutting down...")
-        await client.close()
-
-    @tasks.loop(seconds=1)
-    async def status_task():
-        if os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "shutdown.txt")):
-            print("Shutdown signal received. Shutting down...")
-            os.remove(os.path.join(os.path.dirname(os.path.abspath(__file__)), "shutdown.txt"))
-            await client.close()
-        if os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "restart.txt")):
-            print("Restart signal received. Restarting...")
-            os.remove(os.path.join(os.path.dirname(os.path.abspath(__file__)), "restart.txt"))
-            with open("startup.txt", "w") as f:
-                pass
-            await client.close() 
-else:
-    @tasks.loop(minutes=10)
-    async def status_task():
-        behind_Main = git_commands.git_differences("commit_count")
-        if behind_Main != "0":
-            embed = discord.Embed(title=f"Current Version: {__Version__}", description=f"The current version is not up to date with the latest version on [GitHub]({git_commands.git_url_origin()}).", color=discord.Color.red())
-            embed.add_field(name="GitHub Version", value=f"{git_commands.get_remote_version()}", inline=False)
-            embed.add_field(name="Behind Commits", value=f"The Bot is {behind_Main} commits behind.", inline=False)
-            await client.get_user(Developer_ID.id).send(embed=embed, view=show_commitsView())
-
-
-@status_task.before_loop
-async def before_status_task():
-    await client.wait_until_ready()
-
-class RestartView(discord.ui.View):
-    @discord.ui.button(label="Restart", style=discord.ButtonStyle.danger)
-    async def restart(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not check_developer_id(interaction.user.id):
-            await interaction.response.send_message("You do not have permission to restart the bot.", ephemeral=True)
-            return
-        await interaction.response.send_message("Restarting the bot...", ephemeral=True)
-        os.subprocess.run(["systemctl" , "restart", "Do_Not_Disturb_Bot"])
-       
-class pull_change_confirmationView(discord.ui.View):
-    @discord.ui.button(label="⚠️ Confirm", style=discord.ButtonStyle.danger)
-    async def pull_changes(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not check_developer_id(interaction.user.id):
-            await interaction.response.send_message("You do not have permission to pull changes.", ephemeral=True)
-            return
-        pulled = git_commands.git_pull()
-        embed = discord.Embed(title="Changes Pulled", description=pulled, color=discord.Color.green())
-        await interaction.response.send_message(embed=embed, view=RestartView(), ephemeral=True)
-
-class pull_changeView(discord.ui.View):
-    @discord.ui.button(label="Pull Changes", style=discord.ButtonStyle.danger)
-    async def pull_changes(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not check_developer_id(interaction.user.id):
-            await interaction.response.send_message("You do not have permission to pull changes.", ephemeral=True)
-            return
-        behind_Main = git_commands.git_differences("commit_count")
-        embed = discord.Embed(title="Pull Changes", description=f"Please confirm pulling {behind_Main} {'commit' if behind_Main == 1 else 'commits'} from Github", color=discord.Color.red())
-        await interaction.response.send_message(embed=embed, view=pull_change_confirmationView(), ephemeral=True)
-    
-
-class show_file_differencesView(pull_changeView):
-    @discord.ui.button(label="See changed files", style=discord.ButtonStyle.primary)
-    async def see_file_differences(self, interaction: discord.Interaction, button: discord.ui.Button):
-        differences = git_commands.git_diff("stat")  
-        embed = discord.Embed(title="Changed Files", description=differences, color=discord.Color.blue())
-        await interaction.response.send_message(embed=embed, view=pull_changeView(), ephemeral=True)
-
-
-class show_commitsView(discord.ui.View):
-    @discord.ui.button(label="Show commits", style=discord.ButtonStyle.primary)
-    async def show_commit_links(self, interaction: discord.Interaction, button: discord.ui.Button):
-        commit_links = git_commands.commit_links()
-        short_hashes_with_commit_messages = git_commands.git_differences("short_hash_with_commit_message")
-
-        commit_messages_with_links = []
-        for i in range(len(commit_links)):
-            commit_messages_with_links.append(f"[{short_hashes_with_commit_messages[i]}]({commit_links[i]})")
-
-        embed = discord.Embed(title="Commits", description="Unmerged changes", color=discord.Color.blue())
-        for i in range(len(commit_messages_with_links)):
-            embed.add_field(name="", value=commit_messages_with_links[i], inline=False)
-        await interaction.response.send_message(embed=embed, view=show_file_differencesView(), ephemeral=True)
-
-
-@client.tree.command(name="version", description="Shows the current version of the bot.")
-async def version(interaction: discord.Interaction):
-    behind_Main = git_commands.git_differences("commit_count")
-    if behind_Main != "0":
-        embed = discord.Embed(title=f"Current Version: {__Version__}", description=f"The current version is not up to date with the latest version on [GitHub]({git_commands.git_url_origin()}).", color=discord.Color.red())
-        embed.add_field(name="GitHub Version", value=f"{git_commands.get_remote_version()}", inline=False)
-        embed.add_field(name="Behind Commits", value=f"The Bot is {behind_Main} commits behind.", inline=False)
-        await interaction.response.send_message(embed=embed, view=show_commitsView(), ephemeral=True)
-    else:
-        embed = discord.Embed(title=f"Current Version: {__Version__}", description=f"The current version is up to date with the latest version on [GitHub]({git_commands.git_url_origin()}).", color=discord.Color.green())
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
 def get_Mute_Immune_Role(guild):
     return discord.utils.get(guild.roles, name="Mute Immune")
 
 def get_Do_Not_Disturb_Channel(guild):
     return discord.utils.get(guild.voice_channels, name="Do Not Disturb")
 
-@client.event
-async def on_voice_state_update(member, before, after):
-    if not member.guild_permissions.administrator:
-        return
-        
-    Do_Not_Disturb_Channel = get_Do_Not_Disturb_Channel(after.channel.guild)
 
-    Mute_Immune_Role = get_Mute_Immune_Role(after.channel.guild)
-    if member.get_role(Mute_Immune_Role.id):
-        return
-    
-    if after.channel == Do_Not_Disturb_Channel:
-        await member.edit(mute=True)
-    else:
-        await member.edit(mute=False)
+#endregion
 
 
+#region Bot Features and Commands
+
+#region User Experience Commands
+#region Setup Command
 @client.tree.command(name="setup" , description="Sets up the Bot" )
 @app_commands.checks.has_permissions(administrator=True)
 @app_commands.describe(category="The category under which the 'Do Not Disturb' channel will be created. If not specified, it will be created as an uncategorized voice channel.", 
@@ -280,19 +167,9 @@ async def setup(interaction: discord.Interaction, category: discord.CategoryChan
 async def setup_error(interaction: discord.Interaction, error):
     if isinstance(error, app_commands.MissingPermissions):
         await interaction.response.send_message("You do not have permission to use this command.\nPls ask an administrator to set up the bot.", ephemeral=True)
+#endregion
 
-if In_Testing:
-    @client.tree.command(name="undo_setup", description="Undoes the setup of the bot")
-    @app_commands.checks.has_permissions(administrator=True)
-    async def undo_setup(interaction: discord.Interaction):
-        await interaction.response.send_message("Undoing setup...", ephemeral=True)
-        Do_Not_Disturb_Channel = get_Do_Not_Disturb_Channel(interaction.guild)
-        Mute_Immune_Role = get_Mute_Immune_Role(interaction.guild)
-        if Do_Not_Disturb_Channel is not None:
-            await Do_Not_Disturb_Channel.delete()
-        if Mute_Immune_Role is not None:
-            await Mute_Immune_Role.delete()
-
+#region Help Command
 class HelpMenu(discord.ui.Select):
     def __init__(self):
         options = [
@@ -338,7 +215,11 @@ async def help(interaction: discord.Interaction):
     embed.add_field(name="Mute Immune Role", value="A role that allows users to speak in the 'Do Not Disturb' channel.", inline=False)
     embed.set_footer(text="Select an option from the dropdown menu for more information.")
     await interaction.response.send_message(embed=embed, view=HelpView(), ephemeral=True)
+#endregion
+#endregion
 
+
+#region /Talk With Command
 @client.tree.command(name="talk_with", description="Asks a user to talk with you, even if they are in Do Not Disturb mode.")
 @app_commands.describe(user="The user you want to talk with.")
 async def talk_with(interaction: discord.Interaction, user: discord.Member):
@@ -369,7 +250,101 @@ async def talk_with(interaction: discord.Interaction, user: discord.Member):
         await interaction.response.send_message(f"{user.mention} has been moved to your voice channel.", ephemeral=True)
     else:
         await interaction.response.send_message(f"{user.mention} is not in the Do Not Disturb channel.", ephemeral=True)
+#endregion
+
+
+
+
+@client.event
+async def on_voice_state_update(member, before, after):
+    if not member.guild_permissions.administrator:
+        return
+        
+    Do_Not_Disturb_Channel = get_Do_Not_Disturb_Channel(after.channel.guild)
+
+    Mute_Immune_Role = get_Mute_Immune_Role(after.channel.guild)
+    if member.get_role(Mute_Immune_Role.id):
+        return
     
+    if after.channel == Do_Not_Disturb_Channel:
+        await member.edit(mute=True)
+    else:
+        await member.edit(mute=False)
+
+
+
+#endregion
+
+
+#region Unrelated features and commands(Not Neaded for the bot to work)
+#region Version Command
+class RestartView(discord.ui.View):
+    @discord.ui.button(label="Restart", style=discord.ButtonStyle.danger)
+    async def restart(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not check_developer_id(interaction.user.id):
+            await interaction.response.send_message("You do not have permission to restart the bot.", ephemeral=True)
+            return
+        await interaction.response.send_message("Restarting the bot...", ephemeral=True)
+        os.subprocess.run(["systemctl" , "restart", "Do_Not_Disturb_Bot"])
+       
+class pull_change_confirmationView(discord.ui.View):
+    @discord.ui.button(label="⚠️ Confirm", style=discord.ButtonStyle.danger)
+    async def pull_changes(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not check_developer_id(interaction.user.id):
+            await interaction.response.send_message("You do not have permission to pull changes.", ephemeral=True)
+            return
+        pulled = git_commands.git_pull()
+        embed = discord.Embed(title="Changes Pulled", description=pulled, color=discord.Color.green())
+        await interaction.response.send_message(embed=embed, view=RestartView(), ephemeral=True)
+
+class pull_changeView(discord.ui.View):
+    @discord.ui.button(label="Pull Changes", style=discord.ButtonStyle.danger)
+    async def pull_changes(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not check_developer_id(interaction.user.id):
+            await interaction.response.send_message("You do not have permission to pull changes.", ephemeral=True)
+            return
+        behind_Main = git_commands.git_differences("commit_count")
+        embed = discord.Embed(title="Pull Changes", description=f"Please confirm pulling {behind_Main} {'commit' if behind_Main == 1 else 'commits'} from Github", color=discord.Color.red())
+        await interaction.response.send_message(embed=embed, view=pull_change_confirmationView(), ephemeral=True)
+    
+
+class show_file_differencesView(pull_changeView):
+    @discord.ui.button(label="See changed files", style=discord.ButtonStyle.primary)
+    async def see_file_differences(self, interaction: discord.Interaction, button: discord.ui.Button):
+        differences = git_commands.git_diff("stat")  
+        embed = discord.Embed(title="Changed Files", description=differences, color=discord.Color.blue())
+        await interaction.response.send_message(embed=embed, view=pull_changeView(), ephemeral=True)
+
+
+class show_commitsView(discord.ui.View):
+    @discord.ui.button(label="Show commits", style=discord.ButtonStyle.primary)
+    async def show_commit_links(self, interaction: discord.Interaction, button: discord.ui.Button):
+        commit_links = git_commands.commit_links()
+        short_hashes_with_commit_messages = git_commands.git_differences("short_hash_with_commit_message")
+
+        commit_messages_with_links = []
+        for i in range(len(commit_links)):
+            commit_messages_with_links.append(f"[{short_hashes_with_commit_messages[i]}]({commit_links[i]})")
+
+        embed = discord.Embed(title="Commits", description="Unmerged changes", color=discord.Color.blue())
+        for i in range(len(commit_messages_with_links)):
+            embed.add_field(name="", value=commit_messages_with_links[i], inline=False)
+        await interaction.response.send_message(embed=embed, view=show_file_differencesView(), ephemeral=True)
+
+
+@client.tree.command(name="version", description="Shows the current version of the bot.")
+async def version(interaction: discord.Interaction):
+    behind_Main = git_commands.git_differences("commit_count")
+    if behind_Main != "0":
+        embed = discord.Embed(title=f"Current Version: {__Version__}", description=f"The current version is not up to date with the latest version on [GitHub]({git_commands.git_url_origin()}).", color=discord.Color.red())
+        embed.add_field(name="GitHub Version", value=f"{git_commands.get_remote_version()}", inline=False)
+        embed.add_field(name="Behind Commits", value=f"The Bot is {behind_Main} commits behind.", inline=False)
+        await interaction.response.send_message(embed=embed, view=show_commitsView(), ephemeral=True)
+    else:
+        embed = discord.Embed(title=f"Current Version: {__Version__}", description=f"The current version is up to date with the latest version on [GitHub]({git_commands.git_url_origin()}).", color=discord.Color.green())
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+#endregion  
+
 @client.tree.command(name="source", description="Provides the source code of the bot.")
 async def source_code(interaction: discord.Interaction):
     git_url_origin = git_commands.git_url_origin()
@@ -382,6 +357,61 @@ async def source_code(interaction: discord.Interaction):
         author = git_commands.author_name()
         await interaction.response.send_message(f"This Bot Version of the Bot got modified by {author}\nYou can find the source code of this bot on GitHub: [Source Code]({git_url_origin}) \nThis Bot was originally developed by {Original_Author.mention} \nYou can find the original source code on GitHub: [Original Source Code]({Original_Source_Code_URL})", ephemeral=True)
 
+#region Testing Commands and Status Task
+if In_Testing:
+    @client.tree.command(name="restart", description="Restarts the bot" , guild=Dev_Guild_ID)
+    async def restart(interaction: discord.Interaction):
+        await interaction.response.send_message("Restarting the bot...", ephemeral=True)
+        print("/restart command received.Shutting down...")
+        with open("startup.txt", "w") as f:
+            pass
+        await interaction.client.close()
 
+    @client.tree.command(name="shutdown", description="Shuts down the bot", guild=Dev_Guild_ID)
+    async def shutdown(interaction: discord.Interaction):
+        await interaction.response.send_message("Shutting down the bot...", ephemeral=True)
+        print("/shutdown command received. Shutting down...")
+        await client.close()
+
+    @client.tree.command(name="undo_setup", description="Undoes the setup of the bot")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def undo_setup(interaction: discord.Interaction):
+        await interaction.response.send_message("Undoing setup...", ephemeral=True)
+        Do_Not_Disturb_Channel = get_Do_Not_Disturb_Channel(interaction.guild)
+        Mute_Immune_Role = get_Mute_Immune_Role(interaction.guild)
+        if Do_Not_Disturb_Channel is not None:
+            await Do_Not_Disturb_Channel.delete()
+        if Mute_Immune_Role is not None:
+            await Mute_Immune_Role.delete()
+
+    @tasks.loop(seconds=1)
+    async def status_task():
+        if os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "shutdown.txt")):
+            print("Shutdown signal received. Shutting down...")
+            os.remove(os.path.join(os.path.dirname(os.path.abspath(__file__)), "shutdown.txt"))
+            await client.close()
+        if os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "restart.txt")):
+            print("Restart signal received. Restarting...")
+            os.remove(os.path.join(os.path.dirname(os.path.abspath(__file__)), "restart.txt"))
+            with open("startup.txt", "w") as f:
+                pass
+            await client.close() 
+else:
+    @tasks.loop(minutes=10)
+    async def status_task():
+        behind_Main = git_commands.git_differences("commit_count")
+        if behind_Main != "0":
+            embed = discord.Embed(title=f"Current Version: {__Version__}", description=f"The current version is not up to date with the latest version on [GitHub]({git_commands.git_url_origin()}).", color=discord.Color.red())
+            embed.add_field(name="GitHub Version", value=f"{git_commands.get_remote_version()}", inline=False)
+            embed.add_field(name="Behind Commits", value=f"The Bot is {behind_Main} commits behind.", inline=False)
+            await client.get_user(Developer_ID.id).send(embed=embed, view=show_commitsView())
+
+
+@status_task.before_loop
+async def before_status_task():
+    await client.wait_until_ready()
+#endregion
+#endregion
 
 client.run(discord_token,log_handler=handler, log_level=logging.DEBUG)
+
