@@ -7,7 +7,7 @@ from discord import app_commands
 from types import SimpleNamespace
 import git_commands
 
-__Version__ = "1.2.0"
+__Version__ = "1.2.1"
 
 In_Testing = os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "testing.txt"))
 
@@ -46,7 +46,7 @@ class Client(commands.Bot):
 
     async def on_ready(self):
         print(f'Logged in as {self.user.name}')
-        if not status_task.is_running() and In_Testing:
+        if not status_task.is_running():
             status_task.start()
 
 intents = discord.Intents.default()
