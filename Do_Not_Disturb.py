@@ -7,7 +7,7 @@ from discord import app_commands
 from types import SimpleNamespace
 import git_commands
 
-__Version__ = "1.2.2"
+__Version__ = "1.2.3"
 
 In_Testing = os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "testing.txt"))
 
@@ -130,7 +130,8 @@ class pull_changeView(discord.ui.View):
         if not check_developer_id(interaction.user.id):
             await interaction.response.send_message("You do not have permission to pull changes.", ephemeral=True)
             return
-        embed = discord.Embed(title="Pull Changes", description=f"Please confirm pulling {git_commands.git_differences("commit_count")} from Github", color=discord.Color.red())
+        behind_Main = git_commands.git_differences("commit_count")
+        embed = discord.Embed(title="Pull Changes", description=f"Please confirm pulling {behind_Main} {'commit' if behind_Main == 1 else 'commits'} from Github", color=discord.Color.red())
         await interaction.response.send_message(embed=embed, view=pull_change_confirmationView(), ephemeral=True)
     
 
