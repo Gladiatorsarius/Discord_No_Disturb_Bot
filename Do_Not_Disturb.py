@@ -89,43 +89,64 @@ if In_Testing:
             os.remove(os.path.join(os.path.dirname(os.path.abspath(__file__)), "restart.txt"))
             with open("startup.txt", "w") as f:
                 pass
-            await client.close()
-
-    @status_task.before_loop
-    async def before_status_task():
-        await client.wait_until_ready()
+            await client.close() 
 else:
-    tuff = None
+    @tasks.loop(hours=1)
+    async def status_task():
+        behind_Main = git_commands.git_differences("commit_count")
+        if behind_Main != "0":
+            embed = discord.Embed(title=f"Current Version: {__Version__}", description=f"The current version is not up to date with the latest version on [GitHub]({git_commands.git_url_origin()}).", color=discord.Color.red())
+            embed.add_field(name="GitHub Version", value=f"{git_commands.get_remote_version()}", inline=False)
+            embed.add_field(name="Behind Commits", value=f"The Bot is {behind_Main} commits behind.", inline=False)
+            await client.get_user(Developer_ID.id).send(embed=embed, view=show_commitsView())
+        else:
+            embed = discord.Embed(title=f"Current Version: {__Version__}", description=f"The current version is up to date with the latest version on [GitHub]({git_commands.git_url_origin()}).", color=discord.Color.green())
+            await client.get_user(Developer_ID.id).send(embed=embed, view=show_commitsView())
 
-class show_exact_file_differencesView(discord.ui.View):
-    @discord.ui.button(label="See exact file differences", style=discord.ButtonStyle.primary)
-    async def see_exact_file_differences(self, interaction: discord.Interaction, button:discord.ui.Button):
-        differences = git_commands.git_diff("Files")
-          
-                
+@status_task.before_loop
+async def before_status_task():
+    await client.wait_until_ready()
+class pull_change_confirmationView(discord.ui.View):
+    @discord.ui.button(label="⚠️ Confirm", style=discord.ButtonStyle.danger)
+    async def pull_changes(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not check_developer_id(interaction.user.id):
+            await interaction.response.send_message("You do not have permission to pull changes.", ephemeral=True)
+            return
+        pulled = git_commands.git_pull()
+        embed = discord.Embed(title="Changes Pulled", description=pulled, color=discord.Color.green())
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
-class show_file_differencesView(discord.ui.View):
+class pull_changeView(discord.ui.View):
+    @discord.ui.button(label="Pull Changes", style=discord.ButtonStyle.danger)
+    async def pull_changes(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not check_developer_id(interaction.user.id):
+            await interaction.response.send_message("You do not have permission to pull changes.", ephemeral=True)
+            return
+        embed = discord.Embed(title="Pull Changes", description=f"Please confirm pulling {git_commands.git_differences("commit_count")} from Github", color=discord.Color.red())
+        await interaction.response.send_message(embed=embed, view=pull_change_confirmationView(), ephemeral=True)
+    
+
+class show_file_differencesView(pull_changeView):
     @discord.ui.button(label="See changed files", style=discord.ButtonStyle.primary)
     async def see_file_differences(self, interaction: discord.Interaction, button: discord.ui.Button):
         differences = git_commands.git_diff("stat")  
         embed = discord.Embed(title="Changed Files", description=differences, color=discord.Color.blue())
-        await interaction.response.send_message(embed=embed, view=show_exact_file_differencesView(), ephemeral=True)
+        await interaction.response.send_message(embed=embed, view=pull_changeView(), ephemeral=True)
 
 
 class show_commitsView(discord.ui.View):
     @discord.ui.button(label="Show commits", style=discord.ButtonStyle.primary)
     async def show_commit_links(self, interaction: discord.Interaction, button: discord.ui.Button):
         commit_links = git_commands.commit_links()
-        commit_messages = git_commands.git_differences("commit_message")
-        short_hashes = git_commands.git_differences("short_hash")
+        short_hashes_with_commit_messages = git_commands.git_differences("short_hash_with_commit_message")
 
         commit_messages_with_links = []
         for i in range(len(commit_links)):
-            commit_messages_with_links.append(f"[{commit_messages[i]}]({commit_links[i]})")
+            commit_messages_with_links.append(f"[{short_hashes_with_commit_messages[i]}]({commit_links[i]})")
 
         embed = discord.Embed(title="Commits", description="Unmerged changes", color=discord.Color.blue())
         for i in range(len(commit_messages_with_links)):
-            embed.add_field(name=short_hashes[i], value=commit_messages_with_links[i], inline=False)
+            embed.add_field(name="", value=commit_messages_with_links[i], inline=False)
         await interaction.response.send_message(embed=embed, view=show_file_differencesView(), ephemeral=True)
 
 

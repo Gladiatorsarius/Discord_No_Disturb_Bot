@@ -55,53 +55,10 @@ def commit_links():
 def git_pull():
     git_fetch()
     git_pull = subprocess.run(['git', 'pull'], capture_output=True, text=True)
-    return git_pull.stdout.strip()
-
-def parse_git_diff(diff_text: str) -> list:
-    files = []
-    current_file = None
-    current_hunk = None
-
-    for line in diff_text.splitlines():
-        # Identify start of a file diff
-        if line.startswith("diff --git"):
-            if current_file:
-                if current_hunk:
-                    current_file["hunks"].append(current_hunk)
-                    current_hunk = None
-                files.append(current_file)
-
-            match = re.search(r"diff --git a/(.*?) b/(.*)", line)
-            file_a = match.group(1) if match else ""
-            file_b = match.group(2) if match else ""
-
-            current_file = {"file_a": file_a, "file_b": file_b, "hunks": []}
-
-        # Identify start of a diff hunk (e.g., @@ -1,3 +1,4 @@)
-        elif line.startswith("@@"):
-            if current_file is not None:
-                if current_hunk:
-                    current_file["hunks"].append(current_hunk)
-
-                current_hunk = {"header": line, "lines": []}
-
-        # Collect lines inside the hunk
-        elif current_hunk is not None:
-            current_hunk["lines"].append(line)
-
-    # Append last file and hunk
-    if current_file:
-        if current_hunk:
-            current_file["hunks"].append(current_hunk)
-        files.append(current_file)
-
-    return files
+    return git_pull.stdout.strip()        
 
 def git_diff(type: str):
+    git_fetch()
     if type == "stat":
         git_diff_stat = subprocess.run(['git', 'diff', '--stat', 'HEAD..@{u}'], capture_output=True, text=True)
         return git_diff_stat.stdout.strip()
-    elif type == "Files":
-        git_diff = subprocess.run(['git', 'diff', 'HEAD..@{u}'], capture_output=True, text=True)
-
-        return parse_git_diff(git_diff.stdout.strip())
