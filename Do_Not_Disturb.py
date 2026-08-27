@@ -7,7 +7,7 @@ from discord import app_commands
 from types import SimpleNamespace
 import git_commands
 
-__Version__ = "1.2.1"
+__Version__ = "1.2.2"
 
 In_Testing = os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "testing.txt"))
 
@@ -91,7 +91,7 @@ if In_Testing:
                 pass
             await client.close() 
 else:
-    @tasks.loop(hours=1)
+    @tasks.loop(minutes=10)
     async def status_task():
         behind_Main = git_commands.git_differences("commit_count")
         if behind_Main != "0":
@@ -99,13 +99,21 @@ else:
             embed.add_field(name="GitHub Version", value=f"{git_commands.get_remote_version()}", inline=False)
             embed.add_field(name="Behind Commits", value=f"The Bot is {behind_Main} commits behind.", inline=False)
             await client.get_user(Developer_ID.id).send(embed=embed, view=show_commitsView())
-        else:
-            embed = discord.Embed(title=f"Current Version: {__Version__}", description=f"The current version is up to date with the latest version on [GitHub]({git_commands.git_url_origin()}).", color=discord.Color.green())
-            await client.get_user(Developer_ID.id).send(embed=embed, view=show_commitsView())
+
 
 @status_task.before_loop
 async def before_status_task():
     await client.wait_until_ready()
+
+class RestartView(discord.ui.View):
+    @discord.ui.button(label="Restart", style=discord.ButtonStyle.danger)
+    async def restart(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not check_developer_id(interaction.user.id):
+            await interaction.response.send_message("You do not have permission to restart the bot.", ephemeral=True)
+            return
+        await interaction.response.send_message("Restarting the bot...", ephemeral=True)
+        os.subprocess.run(["systemctl" , "restart", "Do_Not_Disturb_Bot"])
+       
 class pull_change_confirmationView(discord.ui.View):
     @discord.ui.button(label="⚠️ Confirm", style=discord.ButtonStyle.danger)
     async def pull_changes(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -114,7 +122,7 @@ class pull_change_confirmationView(discord.ui.View):
             return
         pulled = git_commands.git_pull()
         embed = discord.Embed(title="Changes Pulled", description=pulled, color=discord.Color.green())
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed, view=RestartView(), ephemeral=True)
 
 class pull_changeView(discord.ui.View):
     @discord.ui.button(label="Pull Changes", style=discord.ButtonStyle.danger)
