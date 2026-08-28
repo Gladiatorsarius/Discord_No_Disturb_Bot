@@ -7,9 +7,10 @@ from discord import app_commands
 from types import SimpleNamespace
 import git_commands
 import subprocess
+import asyncio
 
 #region Variables
-__Version__ = "1.3.1"
+__Version__ = "1.3.2"
 
 In_Testing = os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "testing.txt"))
 
@@ -28,6 +29,7 @@ Original_Author_Name = "Gladiatorsarius" #Please do not change this name. It is 
 
 handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
 #endregion
+
 #region Bot Setup
 class Client(commands.Bot):
     async def setup_hook(self):
@@ -79,7 +81,6 @@ def get_Locked_In_Role(guild):
 
 
 #endregion
-
 
 #region Bot Features and Commands
 
@@ -255,16 +256,21 @@ async def talk_with(interaction: discord.Interaction, user: discord.Member):
 
     if user.status == discord.Status.dnd or user.get_role(get_Locked_In_Role(interaction.guild).id):
         invite = await interaction.user.voice.channel.create_invite(unique=False )
-        await user.send(f"User {interaction.user.display_name} wants to talk with you in {interaction.user.voice.channel.name}. \n{invite.url}")
-        await interaction.response.send_message(f"{user.mention} is in Do Not Disturb mode but has been sent a DM that you want to talk with them.", ephemeral=True)
+        await user.send(f"{interaction.user.display_name} wants to talk with you in {interaction.user.voice.channel.name}. \n{invite.url}")
+        await interaction.response.send_message(f"{user.mention} cant be moved directly, but has been sent a DM that you want to talk with them.", ephemeral=True)
         return
 
     if not user.voice:
         await interaction.response.send_message(f"{user.mention} is not in a voice channel.", ephemeral=True)
         return
+
     if user.voice.channel == Do_Not_Disturb_Channel:
+        await interaction.response.send_message(f"{user.mention} will be moved to your voice channel, in 5 Seconds", ephemeral=True)
+        await user.send(f"{interaction.user.display_name} wants to talk with you in {interaction.user.voice.channel.name}. You will be moved there in 5 seconds.")
+        await asyncio.sleep(5) 
         await user.move_to(interaction.user.voice.channel)
-        await interaction.response.send_message(f"{user.mention} has been moved to your voice channel.", ephemeral=True)
+        await interaction.followup.send(f"{user.mention} has been moved to your voice channel.", ephemeral=True)
+
     else:
         await interaction.response.send_message(f"{user.mention} is not in the Do Not Disturb channel.", ephemeral=True)
 #endregion
@@ -304,7 +310,6 @@ async def on_voice_state_update(member, before, after):
 
 
 #endregion
-
 
 #region Unrelated features and commands(Not Neaded for the bot to work)
 #region Git Related Commands
