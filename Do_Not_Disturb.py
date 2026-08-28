@@ -6,9 +6,10 @@ import logging
 from discord import app_commands
 from types import SimpleNamespace
 import git_commands
+import subprocess
 
 #region Variables
-__Version__ = "1.3.0"
+__Version__ = "1.3.1"
 
 In_Testing = os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "testing.txt"))
 
@@ -307,16 +308,7 @@ async def on_voice_state_update(member, before, after):
 
 #region Unrelated features and commands(Not Neaded for the bot to work)
 #region Git Related Commands
-#region Version Command
-class RestartView(discord.ui.View):
-    @discord.ui.button(label="Restart", style=discord.ButtonStyle.danger)
-    async def restart(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not check_developer_id(interaction.user.id):
-            await interaction.response.send_message("You do not have permission to restart the bot.", ephemeral=True)
-            return
-        await interaction.response.send_message("Restarting the bot...", ephemeral=True)
-        os.subprocess.run(["systemctl" , "restart", "Do_Not_Disturb_Bot"])
-       
+#region Version Command       
 class pull_change_confirmationView(discord.ui.View):
     @discord.ui.button(label="⚠️ Confirm", style=discord.ButtonStyle.danger)
     async def pull_changes(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -325,7 +317,9 @@ class pull_change_confirmationView(discord.ui.View):
             return
         pulled = git_commands.git_pull()
         embed = discord.Embed(title="Changes Pulled", description=pulled, color=discord.Color.green())
-        await interaction.response.send_message(embed=embed, view=RestartView(), ephemeral=True)
+        embed.add_field(name="Restarting Bot", value="The bot will now restart to apply the changes.", inline=False)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        subprocess.run(["systemctl" , "restart", "Do_Not_Disturb_Bot"])
 
 class pull_changeView(discord.ui.View):
     @discord.ui.button(label="Pull Changes", style=discord.ButtonStyle.danger)
@@ -334,7 +328,7 @@ class pull_changeView(discord.ui.View):
             await interaction.response.send_message("You do not have permission to pull changes.", ephemeral=True)
             return
         behind_Main = git_commands.git_differences("commit_count")
-        embed = discord.Embed(title="Pull Changes", description=f"Please confirm pulling {behind_Main} {'commit' if behind_Main == 1 else 'commits'} from Github", color=discord.Color.red())
+        embed = discord.Embed(title="Pull Changes", description=f"Please confirm pulling {behind_Main} {'commit' if behind_Main == 1 else 'commits'} from Github and Restarting the bot", color=discord.Color.red())
         await interaction.response.send_message(embed=embed, view=pull_change_confirmationView(), ephemeral=True)
     
 
@@ -375,6 +369,7 @@ async def version(interaction: discord.Interaction):
         await interaction.response.send_message(embed=embed, ephemeral=True)
 #endregion  
 
+#region Source Code Command
 @client.tree.command(name="source", description="Provides the source code of the bot.")
 async def source_code(interaction: discord.Interaction):
     git_url_origin = git_commands.git_url_origin()
@@ -386,6 +381,7 @@ async def source_code(interaction: discord.Interaction):
     else:
         author = git_commands.author_name()
         await interaction.response.send_message(f"This Bot Version of the Bot got modified by {author}\nYou can find the source code of this bot on GitHub: [Source Code]({git_url_origin}) \nThis Bot was originally developed by {Original_Author.mention} \nYou can find the original source code on GitHub: [Original Source Code]({Original_Source_Code_URL})", ephemeral=True)
+#endregion
 #endregion
 
 #region Testing Commands and Status Task
