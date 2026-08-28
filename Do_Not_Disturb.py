@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import git_commands
 
 #region Variables
-__Version__ = "1.2.4"
+__Version__ = "1.3.0"
 
 In_Testing = os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "testing.txt"))
 
@@ -50,7 +50,7 @@ class Client(commands.Bot):
         print(f'Logged in as {self.user.name}')
         if not status_task.is_running():
             status_task.start()
-
+        await self.get_user(Developer_ID.id).send(f"Bot Started Sucesfully. Version: {__Version__}")
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
@@ -73,6 +73,9 @@ def get_Mute_Immune_Role(guild):
 def get_Do_Not_Disturb_Channel(guild):
     return discord.utils.get(guild.voice_channels, name="Do Not Disturb")
 
+def get_Locked_In_Role(guild):
+    return discord.utils.get(guild.roles, name="Locked In")
+
 
 #endregion
 
@@ -91,18 +94,20 @@ async def setup(interaction: discord.Interaction, category: discord.CategoryChan
     do_not_disturb_permission_everyone_message = "Waiting for previous steps to complete..."
     do_not_disturb_permission_mute_immune_message = "Waiting for previous steps to complete..."
     mute_immune_role_message = "Waiting for previous steps to complete..."
+    locked_in_role_message = "Waiting for previous steps to complete..."
 
 
     async def update_embed(step_message):
         nonlocal setup_progress
-        if step_message == 4:
+        if step_message == 5:
             setup_progress = "Setup completed successfully!"
         embed = discord.Embed(title="Setup Progress", description=setup_progress, color=discord.Color.blue())
         embed.add_field(name="Mute Immune Role", value=f"{mute_immune_role_message}", inline=False)
         embed.add_field(name="Do Not Disturb Channel", value=f"{do_not_disturb_channel_message}", inline=False)
         embed.add_field(name="Do Not Disturb Permissions", value=f"{do_not_disturb_permission_everyone_message}", inline=False)
         embed.add_field(name="Mute Immune Permissions", value=f"{do_not_disturb_permission_mute_immune_message}", inline=False)
-        embed.set_footer(text=f"{step_message}/4 Steps completed.")
+        embed.add_field(name="Locked In Role", value=f"{locked_in_role_message}", inline=False)
+        embed.set_footer(text=f"{step_message}/5 Steps completed.")
         return embed
 
     await interaction.response.send_message(embed=await update_embed(0), ephemeral=True)
@@ -142,7 +147,6 @@ async def setup(interaction: discord.Interaction, category: discord.CategoryChan
 
         await Do_Not_Disturb_Channel.set_permissions(Mute_Immune_Role, speak=True)
         do_not_disturb_permission_mute_immune_message = f"Set 'Do Not Disturb' channel permissions for {Mute_Immune_Role.mention} to speak. :white_check_mark: "
-        await interaction.edit_original_response(embed=await update_embed(4))
 
     else:
         do_not_disturb_channel_message = f"{Do_Not_Disturb_Channel.mention} channel exists. :white_check_mark: "
@@ -161,7 +165,19 @@ async def setup(interaction: discord.Interaction, category: discord.CategoryChan
             do_not_disturb_permission_mute_immune_message = f"Set 'Do Not Disturb' channel permissions for {Mute_Immune_Role.mention} to speak. :white_check_mark: "
         else:
             do_not_disturb_permission_mute_immune_message = f"'Do Not Disturb' channel permissions for {Mute_Immune_Role.mention} are already set to speak. :white_check_mark: "
-        await interaction.edit_original_response(embed=await update_embed(4))
+        
+
+    locked_in_role_message = "Checking 'Locked In' role... :arrows_clockwise:"
+    await interaction.edit_original_response(embed=await update_embed(4))
+    Locked_In_Role = get_Locked_In_Role(interaction.guild)
+    if Locked_In_Role is None:
+        await interaction.guild.create_role(name="Locked In")
+        Locked_In_Role = get_Locked_In_Role(interaction.guild)
+        locked_in_role_message = f"Created {Locked_In_Role.mention} role. :white_check_mark: "
+    else:
+        locked_in_role_message = f"{Locked_In_Role.mention} role exists. :white_check_mark: "
+    await interaction.edit_original_response(embed=await update_embed(5))
+
 
 @setup.error
 async def setup_error(interaction: discord.Interaction, error):
@@ -218,7 +234,7 @@ async def help(interaction: discord.Interaction):
 #endregion
 #endregion
 
-
+#region Core Features
 #region /Talk With Command
 @client.tree.command(name="talk_with", description="Asks a user to talk with you, even if they are in Do Not Disturb mode.")
 @app_commands.describe(user="The user you want to talk with.")
@@ -236,7 +252,7 @@ async def talk_with(interaction: discord.Interaction, user: discord.Member):
     
     user = interaction.guild.get_member(user.id)
 
-    if user.status == discord.Status.dnd:
+    if user.status == discord.Status.dnd or user.get_role(get_Locked_In_Role(interaction.guild).id):
         invite = await interaction.user.voice.channel.create_invite(unique=False )
         await user.send(f"User {interaction.user.display_name} wants to talk with you in {interaction.user.voice.channel.name}. \n{invite.url}")
         await interaction.response.send_message(f"{user.mention} is in Do Not Disturb mode but has been sent a DM that you want to talk with them.", ephemeral=True)
@@ -252,7 +268,20 @@ async def talk_with(interaction: discord.Interaction, user: discord.Member):
         await interaction.response.send_message(f"{user.mention} is not in the Do Not Disturb channel.", ephemeral=True)
 #endregion
 
-
+#region Lock In Command
+@client.tree.command(name="lock_in", description="Toggles the 'Locked In' which stops you from being moved out of the 'Do Not Disturb' channel.")
+async def toggle_do_not_disturb(interaction: discord.Interaction):
+    Locked_In_Role = get_Locked_In_Role(interaction.guild)
+    if Locked_In_Role is None:
+        await interaction.response.send_message("The 'Locked In' role does not exist. Please ask an administrator to run the /setup command.", ephemeral=True)
+        return
+    if interaction.user.get_role(Locked_In_Role.id):
+        await interaction.user.remove_roles(Locked_In_Role)
+        await interaction.response.send_message("Locked In Mode Toggled off", ephemeral=True)
+    else:
+        await interaction.user.add_roles(Locked_In_Role)
+        await interaction.response.send_message("Locked In Mode Toggled on", ephemeral=True)
+#endregion
 
 
 @client.event
@@ -270,13 +299,14 @@ async def on_voice_state_update(member, before, after):
         await member.edit(mute=True)
     else:
         await member.edit(mute=False)
-
+#endregion
 
 
 #endregion
 
 
 #region Unrelated features and commands(Not Neaded for the bot to work)
+#region Git Related Commands
 #region Version Command
 class RestartView(discord.ui.View):
     @discord.ui.button(label="Restart", style=discord.ButtonStyle.danger)
@@ -356,6 +386,7 @@ async def source_code(interaction: discord.Interaction):
     else:
         author = git_commands.author_name()
         await interaction.response.send_message(f"This Bot Version of the Bot got modified by {author}\nYou can find the source code of this bot on GitHub: [Source Code]({git_url_origin}) \nThis Bot was originally developed by {Original_Author.mention} \nYou can find the original source code on GitHub: [Original Source Code]({Original_Source_Code_URL})", ephemeral=True)
+#endregion
 
 #region Testing Commands and Status Task
 if In_Testing:
@@ -379,10 +410,13 @@ if In_Testing:
         await interaction.response.send_message("Undoing setup...", ephemeral=True)
         Do_Not_Disturb_Channel = get_Do_Not_Disturb_Channel(interaction.guild)
         Mute_Immune_Role = get_Mute_Immune_Role(interaction.guild)
+        Locked_In_Role = get_Locked_In_Role(interaction.guild)
         if Do_Not_Disturb_Channel is not None:
             await Do_Not_Disturb_Channel.delete()
         if Mute_Immune_Role is not None:
             await Mute_Immune_Role.delete()
+        if Locked_In_Role is not None:
+            await Locked_In_Role.delete()
 
     @tasks.loop(seconds=1)
     async def status_task():
@@ -397,14 +431,23 @@ if In_Testing:
                 pass
             await client.close() 
 else:
-    @tasks.loop(minutes=10)
+    @tasks.loop(minutes=30)
     async def status_task():
         behind_Main = git_commands.git_differences("commit_count")
+
         if behind_Main != "0":
+            Developer = client.get_user(Developer_ID.id)
+            dm_channel = Developer.dm_channel or await Developer.create_dm()
+            last_message = None
+            async for msg in dm_channel.history(limit=50):
+                if msg.author == client.user:
+                    last_message = msg
+                    break
             embed = discord.Embed(title=f"Current Version: {__Version__}", description=f"The current version is not up to date with the latest version on [GitHub]({git_commands.git_url_origin()}).", color=discord.Color.red())
             embed.add_field(name="GitHub Version", value=f"{git_commands.get_remote_version()}", inline=False)
             embed.add_field(name="Behind Commits", value=f"The Bot is {behind_Main} commits behind.", inline=False)
-            await client.get_user(Developer_ID.id).send(embed=embed, view=show_commitsView())
+            if not last_message or not last_message.embeds == embed:
+                await Developer.send(embed=embed, view=show_commitsView())
 
 
 @status_task.before_loop

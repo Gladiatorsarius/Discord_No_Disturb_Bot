@@ -1,0 +1,5 @@
+make /talk with check for do not disturb role
+make /talk with send the user a message that he will get moved to A voice channel
+
+make like a button or so to make move to voice so you dont have to check every user when they change voice channels 
+you could with a simple DB make it that it stores interaction token and then sends a follow up when you get moved and make it that it dont send dm but instaed send a messages in the channnel where you have to click join to get moved 
