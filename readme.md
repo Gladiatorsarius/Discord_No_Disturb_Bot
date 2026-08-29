@@ -1,14 +1,17 @@
 # Discord Do Not Disturb Bot
 
-A Discord bot that creates a **Do Not Disturb** voice channel. Users can join the channel when they do not want to be disturbed. They cannot speak there unless they have the **Mute Immune** role.
-
-When someone uses `/talk_with`, the bot can move a user from the Do Not Disturb channel to the caller's voice channel. If the user has their Discord status set to Do Not Disturb or has the **Locked In** role, the bot sends them a private message instead.
+I build this Discord Bot  because i was was getting annoyed by people in Voice calls but i didnt want to go in Full Mute because when someone wants to talk to you, you dont hear them because of that this bot creates a Do Not Disturb Voice channel where you can focus on your tasks but when a friend wants to talk to you they can run a command to move you to their channel
 
 ## Try the Official Bot
 
-The official bot is already hosted, so you can try it without running the Python files yourself. An administrator can use the link below to add it to a Discord server. After inviting it, run `/setup` in the server to create the Do Not Disturb channel, Mute Immune role, and Locked In role.
+The official bot is already hosted. You can use the Link below to add it to your Discord server. After inviting it, run `/setup` in the server to create the Do Not Disturb channel, Mute Immune role, and Locked In role.
 
 [Invite the official bot to your server](https://discord.com/oauth2/authorize?client_id=1538953537189318788)
+
+## Design Decisions 
+- Data Storing: I decided To not use a Database for this Discord Bot instead i used set Names To find Roles and Channels 
+
+- Rate Limiting: Unfortunately i experienced getting Rate Limited Pretty Often For that reason i am Thinking about not letting People Join The call but instead have a button which moves them into it and maybe add a Database which then stores interaction Tokens and send followup Messages when you will get moved instead of sending an Dm 
 
 ## Setup
 
@@ -22,13 +25,13 @@ pip install -r requirements.txt
 3. Create a `.env` file in the project folder:
 
 ```env
-# Used when running the bot normally
+# For Normal Use 
 Discord_Token=your_discord_bot_token
 
-# Used when testing.txt exists
+# For Testing 
 Discord_Token_Testing=your_testing_bot_token
 
-# Used for testing-mode command syncing and startup messages
+# Your Test Server and your User ID copy by enabling Developer Mode in Settings 
 Dev_Guild_ID=your_development_server_id
 Developer_ID=your_discord_user_id
 ```
@@ -38,15 +41,14 @@ Developer_ID=your_discord_user_id
 
 ### Testing Mode
 
-The `In_Testing` setting is enabled automatically when an empty file named `testing.txt` exists beside `Do_Not_Disturb.py`.
+Enable Testing Mode by Creating an Empty testing.txt file
 
-- With `testing.txt`, the bot uses `Discord_Token_Testing` and syncs commands to the development server.
-- Without `testing.txt`, the bot uses `Discord_Token` and syncs commands globally.
-- `/restart`, `/shutdown`, and `/undo_setup` are available only in testing mode.
+- In Testing Mode the Bot uses 'Discord_Token_Testing' Variable in .env 
+- `/restart`, `/shutdown`, and `/undo_setup` are only in available testing mode.
 
-Remove `testing.txt` when you are ready to run the bot in production.
+Normally the Bot uses Discord_Token
 
-The bot is currently version `1.3.2`. On startup, it sends a status message to the Discord user configured by `Developer_ID`. Keep token values private and use placeholders when sharing the `.env` file.
+The Bot sends an Startup Messages to the developer 
 
 ## Run
 
@@ -60,8 +62,8 @@ python Do_Not_Disturb.py
 | --- | --- |
 | `/setup [category] [default_role]` | Creates the **Do Not Disturb** voice channel, **Mute Immune** role, and **Locked In** role. You can optionally choose a channel category and the role that should be configured as muted in the Do Not Disturb channel. This is useful when `@everyone` cannot join the channel or is already muted in every voice channel, such as when using a verification bot like [SecurityBot](https://securitybot.gg). Admin only. |
 | `/undo_setup` | Deletes the Do Not Disturb channel, Mute Immune role, and Locked In role. Testing mode and admin only. |
-| `/talk_with @user` | Requires you to be in a voice channel. If the selected user is in Do Not Disturb, they receive a warning and DM, then are moved after five seconds. Users with DND status or the Locked In role receive an invite by DM instead of being moved. |
-| `/lock_in` | Toggles the Locked In role for yourself. When enabled, you cannot be moved by `/talk_with`. |
+| `/talk_with @user` |Moves The User to your Voice Channel, Sends a Dm to the User that he will be moved to your Voice Channel in 5 Seconds. When youre Status is Discords Do Not Disturb Status or you have the Locked In Role You will get a Dm with an Invite Link Instead|
+| `/lock_in` | Gives You The 'Locked In' Role|
 | `/help` | Shows an overview of the bot. Use the dropdown menu to read more about each feature. |
 | `/version` | Shows the current version and checks whether the local Git checkout is behind GitHub. |
 | `/source` | Shows the source code link and original author information. |
@@ -69,6 +71,10 @@ python Do_Not_Disturb.py
 | `/shutdown` | Closes the bot without restarting it. Testing mode only. |
 
 Run `/setup` before using the other bot features.
+
+## Features
+| Feature | What It Does |
+| --- | --- |
 
 ## How To Use
 
