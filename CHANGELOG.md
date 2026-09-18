@@ -1,3 +1,9 @@
+## v2.0.1 (2026-09-18)
+
+### Fix
+
+- removed unused helper funktions and changed basicdiscordbot version
+
 ## v2.0.0 (2026-09-18)
 
 ### BREAKING CHANGE
