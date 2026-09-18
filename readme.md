@@ -1,56 +1,63 @@
 # Discord Do Not Disturb Bot
 
-I build this Discord Bot  because i was was getting annoyed by people in Voice calls but i didnt want to go in Full Mute because when someone wants to talk to you, you dont hear them because of that this bot creates a Do Not Disturb Voice channel where you can focus on your tasks but when a friend wants to talk to you they can run a command to move you to their channel
+This Discord bot creates a **Do Not Disturb** voice channel for focused work. Friends can still request to talk with someone without requiring them to leave Discord or disable all notifications.
 
 ## Try the Official Bot
 
-The official bot is already hosted. You can use the Link below to add it to your Discord server. After inviting it, run `/setup` in the server to create the Do Not Disturb channel, Mute Immune role, and Locked In role.
+The official bot is already hosted. Use the link below to add it to a Discord server, then run `/setup` to create the Do Not Disturb channel, Mute Immune role, and Locked In role.
 
 [Invite the official bot to your server](https://discord.com/oauth2/authorize?client_id=1538953537189318788)
 
-## Design Decisions 
-- Data Storing: I decided To not use a Database for this Discord Bot instead i used set Names To find Roles and Channels 
-
-- Rate Limiting: Unfortunately i experienced getting Rate Limited Pretty Often For that reason i am Thinking about not letting People Join The call but instead have a button which moves them into it and maybe add a Database which then stores interaction Tokens and send followup Messages when you will get moved instead of sending an Dm 
-
 ## Setup
 
-1. Install Python 3.12 or newer.
-2. Install the dependencies:
+1. Install Python 3.14 or newer.
+2. Install [uv](https://docs.astral.sh/uv/).
+3. Install the project dependencies:
 
-```bash
-pip install -r requirements.txt
+```shell
+uv sync
 ```
 
-3. Create a `.env` file in the project folder:
+4. Create a `.env` file in the project folder:
 
 ```env
-# For Normal Use 
+# Used when testing=false
 Discord_Token=your_discord_bot_token
 
-# For Testing 
+# Used when testing=true
 Discord_Token_Testing=your_testing_bot_token
 
-# Your Test Server and your User ID copy by enabling Developer Mode in Settings 
+# Development server ID. Enable Discord Developer Mode to copy IDs.
 Dev_Guild_ID=your_development_server_id
-Developer_ID=your_discord_user_id
+
+# Channel where changelog messages are sent
+Changelog_Channel_ID=your_changelog_channel_id
+
+# Set to true for testing mode or false for normal operation
+testing=false
 ```
 
-4. In the Discord Developer Portal, enable the **Members**, **Presence**, and **Message Content** intents under the bot settings.
-5. Invite the bot with permissions to manage channels and roles, mute and move members, create invites, and send messages.
+5. In the Discord Developer Portal, enable the **Members**, **Presence**, and **Message Content** intents under the bot settings.
+6. Invite the bot with permissions to manage channels and roles, mute and move members, create invites, and send messages.
 
 ### Testing Mode
 
-Enable Testing Mode by Creating an Empty testing.txt file
+Set `testing=true` in `.env` to enable testing mode.
 
-- In Testing Mode the Bot uses 'Discord_Token_Testing' Variable in .env 
-- `/restart`, `/shutdown`, and `/undo_setup` are only in available testing mode.
+- Testing mode uses `Discord_Token_Testing` and syncs commands to `Dev_Guild_ID`.
+- `/undo_setup` is available only in testing mode and requires administrator permissions.
 
-Normally the Bot uses Discord_Token
+Set `testing=false` for normal operation. The bot then uses `Discord_Token` and syncs commands globally.
 
-The Bot sends an Startup Messages to the developer 
+The [`basicdiscordbot`](https://github.com/Gladiatorsarius/BasicDiscordBot) integration provides the bot's maintenance features, including `/info` and automatic pull/restart behavior. `Changelog_Channel_ID` tells the integration where changelog messages should be sent.
 
 ## Run
+
+```bash
+uv run Do_Not_Disturb.py
+```
+
+You can also run the script with the selected Python environment:
 
 ```bash
 python Do_Not_Disturb.py
@@ -60,21 +67,14 @@ python Do_Not_Disturb.py
 
 | Command | Description |
 | --- | --- |
-| `/setup [category] [default_role]` | Creates the **Do Not Disturb** voice channel, **Mute Immune** role, and **Locked In** role. You can optionally choose a channel category and the role that should be configured as muted in the Do Not Disturb channel. This is useful when `@everyone` cannot join the channel or is already muted in every voice channel, such as when using a verification bot like [SecurityBot](https://securitybot.gg). Admin only. |
+| `/setup [category] [default_role]` | Creates the **Do Not Disturb** voice channel, **Mute Immune** role, and **Locked In** role. `category` optionally selects the channel category. `default_role` selects the role that receives the channel's default connect and muted permissions. This is useful when `@everyone` cannot join the channel or is already muted in every voice channel, such as when using a verification bot like [SecurityBot](https://securitybot.gg). Admin only. |
 | `/undo_setup` | Deletes the Do Not Disturb channel, Mute Immune role, and Locked In role. Testing mode and admin only. |
-| `/talk_with @user` |Moves The User to your Voice Channel, Sends a Dm to the User that he will be moved to your Voice Channel in 5 Seconds. When youre Status is Discords Do Not Disturb Status or you have the Locked In Role You will get a Dm with an Invite Link Instead|
-| `/lock_in` | Gives You The 'Locked In' Role|
+| `/talk_with @user` | Requires you to be in a voice channel. A user in Do Not Disturb receives a DM and is moved after five seconds. Users with DND status or the Locked In role receive a DM with an invite instead of being moved. |
+| `/lock_in` | Toggles the Locked In role for yourself. Users with this role cannot be moved by `/talk_with`. |
 | `/help` | Shows an overview of the bot. Use the dropdown menu to read more about each feature. |
-| `/version` | Shows the current version and checks whether the local Git checkout is behind GitHub. |
-| `/source` | Shows the source code link and original author information. |
-| `/restart` | Closes the bot and creates a restart signal. This is intended to be used with `Restart_Bot.py`. Testing mode only. |
-| `/shutdown` | Closes the bot without restarting it. Testing mode only. |
+| `/info` | Shows information provided by the `basicdiscordbot` integration. |
 
 Run `/setup` before using the other bot features.
-
-## Features
-| Feature | What It Does |
-| --- | --- |
 
 ## How To Use
 
@@ -83,20 +83,14 @@ Run `/setup` before using the other bot features.
 3. Users with the **Mute Immune** role, such as music bots, can speak in the channel.
 4. To contact someone, join another voice channel and run `/talk_with @user`.
 
-To run the optional restart helper instead, use:
-
-```bash
-python Restart_Bot.py
-```
-
-`Restart_Bot.py` starts the bot and watches for restart signals. Pressing Enter in that window also requests a restart.
 
 ## Maintenance Notes
 
-- `/version` and update notifications require a Git checkout with a working `origin` remote.
-- The bot's update action uses Linux `systemctl` and is not intended for Windows.
-- Runtime logs are written to `discord.log`. The restart system uses `startup.txt`, `restart.txt`, and `shutdown.txt`.
+- The project uses `pyproject.toml` and `uv.lock` for dependency management.
+- The bot writes runtime logs to `discord.log`.
+- The [`basicdiscordbot`](https://github.com/Gladiatorsarius/BasicDiscordBot) update integration uses a Git checkout with an `origin` remote and may use Linux `systemctl` for service restarts.
 - The `todo` file contains unfinished ideas, such as button-based move requests and channel-based join confirmations.
+- Version `2.0.0` is the current rewrite using the `basicdiscordbot` integration. See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 ## Credits
 
