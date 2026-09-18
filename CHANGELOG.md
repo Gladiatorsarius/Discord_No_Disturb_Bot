@@ -1,0 +1,16 @@
+## v2.0.0 (2026-09-18)
+
+### BREAKING CHANGE
+
+- rewrote almost entire Bot
+
+### Feat
+
+- changed the project structure to use Uv and cz. And added integration with BasicDiscordBot.py
+- update bot interaction messages and improve user experience for voice channel movement
+- add Locked in Role which works as Status Dnd and edited prod status task to not spam dms to dev
+
+### Fix
+
+- add missing subprocess import and made restart and pull one button click
+- fixed small typo in pull changes button
