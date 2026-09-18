@@ -49,13 +49,6 @@ async def setup_hook():
 #endregion
 
 #region Helper Functions
-def check_developer_id(user_id: int) -> bool:
-    return user_id == Developer_ID.id
-
-def is_developer():
-    async def predicate(interaction: discord.Interaction):
-        return check_developer_id(interaction.user.id)
-    return app_commands.check(predicate)
 
 def get_Mute_Immune_Role(guild):
     return discord.utils.get(guild.roles, name="Mute Immune")
@@ -73,99 +66,146 @@ def get_Locked_In_Role(guild):
 
 #region User Experience Commands
 #region Setup Command
-@client.tree.command(name="setup" , description="Sets up the Bot" )
+import asyncio
+import discord
+from discord import app_commands
+
+@client.tree.command(name="setup", description="Sets up the Bot")
 @app_commands.checks.has_permissions(administrator=True)
-@app_commands.describe(category="The category under which the 'Do Not Disturb' channel will be created. If not specified, it will be created as an uncategorized voice channel.", 
-                       default_role="The role that will be given permission to mute in the 'Do Not Disturb' channel. If not specified, @everyone will be used.")
-async def setup(interaction: discord.Interaction, category: discord.CategoryChannel = None, default_role: discord.Role = None):
-    setup_progress = "Setting up the bot..."
-    do_not_disturb_channel_message = "Waiting for previous steps to complete..."
-    do_not_disturb_permission_everyone_message = "Waiting for previous steps to complete..."
-    do_not_disturb_permission_mute_immune_message = "Waiting for previous steps to complete..."
-    mute_immune_role_message = "Waiting for previous steps to complete..."
-    locked_in_role_message = "Waiting for previous steps to complete..."
+@app_commands.describe(
+    category="The category under which the 'Do Not Disturb' channel will be created. If not specified, it will be created as an uncategorized voice channel.",
+    default_role="The role that will be given permission to mute in the 'Do Not Disturb' channel. If not specified, @everyone will be used."
+)
+async def setup(
+    interaction: discord.Interaction, 
+    category: discord.CategoryChannel = None, 
+    default_role: discord.Role = None
+):
+    # Dictionary to keep track of individual step messages and completed count
+    state = {
+        "mute_immune": "Waiting for previous steps to complete...",
+        "dnd_channel": "Waiting for previous steps to complete...",
+        "perm_everyone": "Waiting for previous steps to complete...",
+        "perm_mute_immune": "Waiting for previous steps to complete...",
+        "locked_in": "Waiting for previous steps to complete...",
+        "completed_steps": 0
+    }
 
+    async def update_embed():
+        progress_title = "Setup completed successfully!" if state["completed_steps"] == 5 else "Setting up the bot..."
+        
+        embed = discord.Embed(title="Setup Progress", description=progress_title, color=discord.Color.blue())
+        embed.add_field(name="Mute Immune Role", value=state["mute_immune"], inline=False)
+        embed.add_field(name="Do Not Disturb Channel", value=state["dnd_channel"], inline=False)
+        embed.add_field(name="Do Not Disturb Permissions", value=state["perm_everyone"], inline=False)
+        embed.add_field(name="Mute Immune Permissions", value=state["perm_mute_immune"], inline=False)
+        embed.add_field(name="Locked In Role", value=state["locked_in"], inline=False)
+        embed.set_footer(text=f"{state['completed_steps']}/5 Steps completed.")
+        
+        await interaction.edit_original_response(embed=embed)
 
-    async def update_embed(step_message):
-        nonlocal setup_progress
-        if step_message == 5:
-            setup_progress = "Setup completed successfully!"
-        embed = discord.Embed(title="Setup Progress", description=setup_progress, color=discord.Color.blue())
-        embed.add_field(name="Mute Immune Role", value=f"{mute_immune_role_message}", inline=False)
-        embed.add_field(name="Do Not Disturb Channel", value=f"{do_not_disturb_channel_message}", inline=False)
-        embed.add_field(name="Do Not Disturb Permissions", value=f"{do_not_disturb_permission_everyone_message}", inline=False)
-        embed.add_field(name="Mute Immune Permissions", value=f"{do_not_disturb_permission_mute_immune_message}", inline=False)
-        embed.add_field(name="Locked In Role", value=f"{locked_in_role_message}", inline=False)
-        embed.set_footer(text=f"{step_message}/5 Steps completed.")
-        return embed
+    # Send initial embed
+    embed = discord.Embed(title="Setup Progress", description="Setting up the bot...", color=discord.Color.blue())
+    embed.add_field(name="Mute Immune Role", value=state["mute_immune"], inline=False)
+    embed.add_field(name="Do Not Disturb Channel", value=state["dnd_channel"], inline=False)
+    embed.add_field(name="Do Not Disturb Permissions", value=state["perm_everyone"], inline=False)
+    embed.add_field(name="Mute Immune Permissions", value=state["perm_mute_immune"], inline=False)
+    embed.add_field(name="Locked In Role", value=state["locked_in"], inline=False)
+    embed.set_footer(text="0/5 Steps completed.")
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    await interaction.response.send_message(embed=await update_embed(0), ephemeral=True)
-
-
-    mute_immune_role_message = "Checking 'Mute Immune' role..."
-    await interaction.edit_original_response(embed=await update_embed(0))
-    
-    Mute_Immune_Role = get_Mute_Immune_Role(interaction.guild)
-    if Mute_Immune_Role is None:
-        await interaction.guild.create_role(name="Mute Immune")
-        Mute_Immune_Role = get_Mute_Immune_Role(interaction.guild)
-        mute_immune_role_message = f"Created {Mute_Immune_Role.mention} role. :white_check_mark: "
-    else:
-        mute_immune_role_message = f"{Mute_Immune_Role.mention} role exists. :white_check_mark: "
-
-
-    do_not_disturb_channel_message = "Checking if 'Do Not Disturb channel' exists :arrows_clockwise: ... "
-    await interaction.edit_original_response(embed=await update_embed(1))
-
-    Do_Not_Disturb_Channel = get_Do_Not_Disturb_Channel(interaction.guild)
+    # Resolve default_role fallback
     if default_role is None:
         default_role = interaction.guild.default_role
-    if Do_Not_Disturb_Channel is None:
-        await interaction.guild.create_voice_channel(name ="Do Not Disturb" , category=category)
-        Do_Not_Disturb_Channel = get_Do_Not_Disturb_Channel(interaction.guild)
-        do_not_disturb_channel_message = f"Created {Do_Not_Disturb_Channel.mention} channel. {"As Uncategorized Voice Channel" if category is None else f"Under {category.name}"} :white_check_mark: "
 
-        do_not_disturb_permission_everyone_message = f"Setting 'Do Not Disturb' channel permissions for {default_role.mention} :arrows_clockwise: ..."
-        await interaction.edit_original_response(embed=await update_embed(2))
+    # ==================== STEP HELPER FUNCTIONS ====================
 
-        await Do_Not_Disturb_Channel.set_permissions(default_role, connect=True, speak=False)
-        do_not_disturb_permission_everyone_message = f"Set 'Do Not Disturb' channel permissions for {default_role.mention} to not speak. :white_check_mark: "
-
-        do_not_disturb_permission_mute_immune_message = f"Setting 'Do Not Disturb' channel permissions for {Mute_Immune_Role.mention} :arrows_clockwise: ..."
-        await interaction.edit_original_response(embed=await update_embed(3))
-
-        await Do_Not_Disturb_Channel.set_permissions(Mute_Immune_Role, speak=True)
-        do_not_disturb_permission_mute_immune_message = f"Set 'Do Not Disturb' channel permissions for {Mute_Immune_Role.mention} to speak. :white_check_mark: "
-
-    else:
-        do_not_disturb_channel_message = f"{Do_Not_Disturb_Channel.mention} channel exists. :white_check_mark: "
-        do_not_disturb_permission_everyone_message = f"Checking  'Do Not Disturb' channel permissions for {default_role.mention} :arrows_clockwise: ..."
-        await interaction.edit_original_response(embed=await update_embed(2))
-        if Do_Not_Disturb_Channel.permissions_for(default_role).speak is not False:
-            await Do_Not_Disturb_Channel.set_permissions(default_role, connect=True, speak=False)
-            do_not_disturb_permission_everyone_message = f"Set 'Do Not Disturb' channel permissions for {default_role.mention} to not speak. :white_check_mark: "
-        else:
-            do_not_disturb_permission_everyone_message = f"'Do Not Disturb' channel permissions for {default_role.mention} are already set to not speak. :white_check_mark: "
-
-        do_not_disturb_permission_mute_immune_message = f"Checking 'Do Not Disturb' channel permissions for {Mute_Immune_Role.mention} :arrows_clockwise: ..."
-        await interaction.edit_original_response(embed=await update_embed(3))
-        if Do_Not_Disturb_Channel.permissions_for(Mute_Immune_Role).speak is not True:
-            await Do_Not_Disturb_Channel.set_permissions(Mute_Immune_Role, speak=True)
-            do_not_disturb_permission_mute_immune_message = f"Set 'Do Not Disturb' channel permissions for {Mute_Immune_Role.mention} to speak. :white_check_mark: "
-        else:
-            do_not_disturb_permission_mute_immune_message = f"'Do Not Disturb' channel permissions for {Mute_Immune_Role.mention} are already set to speak. :white_check_mark: "
+    async def task_mute_immune_role():
+        state["mute_immune"] = "Checking 'Mute Immune' role..."
+        await update_embed()
         
+        mute_immune_role = get_Mute_Immune_Role(interaction.guild)
+        if mute_immune_role is None:
+            mute_immune_role = await interaction.guild.create_role(name="Mute Immune")
+            state["mute_immune"] = f"Created {mute_immune_role.mention} role. :white_check_mark:"
+        else:
+            state["mute_immune"] = f"{mute_immune_role.mention} role exists. :white_check_mark:"
+        
+        state["completed_steps"] += 1
+        await update_embed()
+        return mute_immune_role
 
-    locked_in_role_message = "Checking 'Locked In' role... :arrows_clockwise:"
-    await interaction.edit_original_response(embed=await update_embed(4))
-    Locked_In_Role = get_Locked_In_Role(interaction.guild)
-    if Locked_In_Role is None:
-        await interaction.guild.create_role(name="Locked In")
-        Locked_In_Role = get_Locked_In_Role(interaction.guild)
-        locked_in_role_message = f"Created {Locked_In_Role.mention} role. :white_check_mark: "
-    else:
-        locked_in_role_message = f"{Locked_In_Role.mention} role exists. :white_check_mark: "
-    await interaction.edit_original_response(embed=await update_embed(5))
+    async def task_locked_in_role():
+        state["locked_in"] = "Checking 'Locked In' role... :arrows_clockwise:"
+        await update_embed()
+        
+        locked_in_role = get_Locked_In_Role(interaction.guild)
+        if locked_in_role is None:
+            locked_in_role = await interaction.guild.create_role(name="Locked In")
+            state["locked_in"] = f"Created {locked_in_role.mention} role. :white_check_mark:"
+        else:
+            state["locked_in"] = f"{locked_in_role.mention} role exists. :white_check_mark:"
+        
+        state["completed_steps"] += 1
+        await update_embed()
+        return locked_in_role
+
+    async def task_dnd_channel():
+        state["dnd_channel"] = "Checking if 'Do Not Disturb channel' exists :arrows_clockwise: ... "
+        await update_embed()
+        
+        dnd_channel = get_Do_Not_Disturb_Channel(interaction.guild)
+        if dnd_channel is None:
+            dnd_channel = await interaction.guild.create_voice_channel(name="Do Not Disturb", category=category)
+            category_text = "As Uncategorized Voice Channel" if category is None else f"Under {category.name}"
+            state["dnd_channel"] = f"Created {dnd_channel.mention} channel. {category_text} :white_check_mark:"
+        else:
+            state["dnd_channel"] = f"{dnd_channel.mention} channel exists. :white_check_mark:"
+        
+        state["completed_steps"] += 1
+        await update_embed()
+        return dnd_channel
+
+    async def task_everyone_permissions(dnd_channel):
+        state["perm_everyone"] = f"Checking 'Do Not Disturb' channel permissions for {default_role.mention} :arrows_clockwise: ..."
+        await update_embed()
+        
+        if dnd_channel.permissions_for(default_role).speak is not False:
+            await dnd_channel.set_permissions(default_role, connect=True, speak=False)
+            state["perm_everyone"] = f"Set 'Do Not Disturb' channel permissions for {default_role.mention} to not speak. :white_check_mark:"
+        else:
+            state["perm_everyone"] = f"'Do Not Disturb' channel permissions for {default_role.mention} are already set to not speak. :white_check_mark:"
+        
+        state["completed_steps"] += 1
+        await update_embed()
+
+    async def task_mute_immune_permissions(dnd_channel, mute_immune_role):
+        state["perm_mute_immune"] = f"Checking 'Do Not Disturb' channel permissions for {mute_immune_role.mention} :arrows_clockwise: ..."
+        await update_embed()
+        
+        if dnd_channel.permissions_for(mute_immune_role).speak is not True:
+            await dnd_channel.set_permissions(mute_immune_role, speak=True)
+            state["perm_mute_immune"] = f"Set 'Do Not Disturb' channel permissions for {mute_immune_role.mention} to speak. :white_check_mark:"
+        else:
+            state["perm_mute_immune"] = f"'Do Not Disturb' channel permissions for {mute_immune_role.mention} are already set to speak. :white_check_mark:"
+        
+        state["completed_steps"] += 1
+        await update_embed()
+
+    # ==================== CONCURRENT EXECUTION ====================
+
+    # Phase 1: Create/check Mute Immune role, Locked In role, and DND channel in parallel
+    mute_immune_role, _, dnd_channel = await asyncio.gather(
+        task_mute_immune_role(),
+        task_locked_in_role(),
+        task_dnd_channel()
+    )
+
+    # Phase 2: Set permissions in parallel (dependent on Phase 1 results)
+    await asyncio.gather(
+        task_everyone_permissions(dnd_channel),
+        task_mute_immune_permissions(dnd_channel, mute_immune_role)
+    )
 
 
 @setup.error
@@ -231,12 +271,11 @@ if testing:
         Do_Not_Disturb_Channel = get_Do_Not_Disturb_Channel(interaction.guild)
         Mute_Immune_Role = get_Mute_Immune_Role(interaction.guild)
         Locked_In_Role = get_Locked_In_Role(interaction.guild)
-        if Do_Not_Disturb_Channel is not None:
-            await Do_Not_Disturb_Channel.delete()
-        if Mute_Immune_Role is not None:
-            await Mute_Immune_Role.delete()
-        if Locked_In_Role is not None:
-            await Locked_In_Role.delete()
+        asyncio.gather(
+            Do_Not_Disturb_Channel.delete() if Do_Not_Disturb_Channel else None,
+            Mute_Immune_Role.delete() if Mute_Immune_Role else None,
+            Locked_In_Role.delete() if Locked_In_Role else None
+        )
 #endregion
 #endregion
 
