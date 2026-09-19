@@ -1,3 +1,9 @@
+## v2.0.2 (2026-09-19)
+
+### Fix
+
+- added await before /undo_setup
+
 ## v2.0.1 (2026-09-18)
 
 ### Fix
