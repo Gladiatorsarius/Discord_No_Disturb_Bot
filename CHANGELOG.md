@@ -1,3 +1,9 @@
+## v2.0.5 (2026-09-19)
+
+### Fix
+
+- **uv.lock**: upgrade basicdiscordbot dependency to 2.2.2
+
 ## v2.0.4 (2026-09-19)
 
 ### Fix
