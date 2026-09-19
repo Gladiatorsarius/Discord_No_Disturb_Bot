@@ -132,15 +132,15 @@ wheels = [
 
 [[package]]
 name = "basicdiscordbot"
-version = "2.0.1"
+version = "2.0.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "discord-py" },
     { name = "dotenv" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f7/9e/803e2e3c41f1f9e2eeaeb8d71a3c9833b189dc6fa2ded2eb6b62912d167b/basicdiscordbot-2.0.1.tar.gz", hash = "sha256:0efbf6d6b4795b381bf40290ef08b37f71a605f81d8f233a8d6f2c97bd931756", size = 4125, upload-time = "2026-09-18T11:57:02.484Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e1/b4/888424ac916a94ab5050ad1debe560538859429483f64698012e0b29a7b9/basicdiscordbot-2.0.2.tar.gz", hash = "sha256:e6d549753267034985e70c36a6010f023f6684264b0e639921820977f9907d84", size = 4123, upload-time = "2026-09-18T13:15:50.419Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fd/2f/eabfd05d198bc6fa9525a75afbb405822dcc64b47e759e354d95f75e6702/basicdiscordbot-2.0.1-py3-none-any.whl", hash = "sha256:9b5ae673c044e69f288f8f1cc2166eac99be89cd33e1d1d70619c39f358ba501", size = 5408, upload-time = "2026-09-18T11:57:01.13Z" },
+    { url = "https://files.pythonhosted.org/packages/a7/af/22dac4f6c972f4169dcee588aa03a7faa1e5d618f4d886b04807be3d1fc1/basicdiscordbot-2.0.2-py3-none-any.whl", hash = "sha256:241b99a1f00a5f50c99ba3ca2ecd8bc576ec7c7ff9cd2164089a76265f1d27d8", size = 5406, upload-time = "2026-09-18T13:15:49.116Z" },
 ]
 
 [[package]]
@@ -156,7 +156,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "basicdiscordbot", specifier = ">=2.0.1" },
+    { name = "basicdiscordbot", specifier = ">=2.0.2" },
     { name = "discord-py", specifier = ">=2.7.1" },
     { name = "dotenv", specifier = ">=0.9.9" },
     { name = "python-dotenv", specifier = ">=1.2.3" },

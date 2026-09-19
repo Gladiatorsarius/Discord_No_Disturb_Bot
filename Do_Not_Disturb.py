@@ -66,10 +66,6 @@ def get_Locked_In_Role(guild):
 
 #region User Experience Commands
 #region Setup Command
-import asyncio
-import discord
-from discord import app_commands
-
 @client.tree.command(name="setup", description="Sets up the Bot")
 @app_commands.checks.has_permissions(administrator=True)
 @app_commands.describe(
@@ -271,7 +267,7 @@ if testing:
         Do_Not_Disturb_Channel = get_Do_Not_Disturb_Channel(interaction.guild)
         Mute_Immune_Role = get_Mute_Immune_Role(interaction.guild)
         Locked_In_Role = get_Locked_In_Role(interaction.guild)
-        asyncio.gather(
+        await asyncio.gather(
             Do_Not_Disturb_Channel.delete() if Do_Not_Disturb_Channel else None,
             Mute_Immune_Role.delete() if Mute_Immune_Role else None,
             Locked_In_Role.delete() if Locked_In_Role else None
