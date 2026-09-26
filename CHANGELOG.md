@@ -1,3 +1,9 @@
+## v2.0.6 (2026-09-26)
+
+### Fix
+
+- **uv.lock,readme.md**: change basicdiscordbot dependecie and made readme clearer
+
 ## v2.0.5 (2026-09-19)
 
 ### Fix
