@@ -45,7 +45,7 @@ testing=false
 Set `testing=true` in `.env` to enable testing mode.
 
 - Testing mode uses `Discord_Token_Testing` and syncs commands to `Dev_Guild_ID`.
-- `/undo_setup` is available only in testing mode and requires administrator permissions.
+- `/undo_setup` is available in testing mode only. `/undo_setup` Deletes the Do Not Disturb channel, Mute Immune role, and Locked In role, admin only.
 
 Set `testing=false` for normal operation. The bot then uses `Discord_Token` and syncs commands globally.
 
@@ -68,7 +68,6 @@ python Do_Not_Disturb.py
 | Command | Description |
 | --- | --- |
 | `/setup [category] [default_role]` | Creates the **Do Not Disturb** voice channel, **Mute Immune** role, and **Locked In** role. `category` optionally selects the channel category. `default_role` selects the role that receives the channel's default connect and muted permissions. This is useful when `@everyone` cannot join the channel or is already muted in every voice channel, such as when using a verification bot like [SecurityBot](https://securitybot.gg). Admin only. |
-| `/undo_setup` | Deletes the Do Not Disturb channel, Mute Immune role, and Locked In role. Testing mode and admin only. |
 | `/talk_with @user` | Requires you to be in a voice channel. A user in Do Not Disturb receives a DM and is moved after five seconds. Users with DND status or the Locked In role receive a DM with an invite instead of being moved. |
 | `/lock_in` | Toggles the Locked In role for yourself. Users with this role cannot be moved by `/talk_with`. |
 | `/help` | Shows an overview of the bot. Use the dropdown menu to read more about each feature. |
